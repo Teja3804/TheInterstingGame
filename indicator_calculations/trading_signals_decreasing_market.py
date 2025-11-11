@@ -65,7 +65,13 @@ def is_below_lower_bb(ohlc_data: pd.DataFrame, bb_data: Dict, idx: int, lookback
     if idx < lookback:
         return False
     
-    lower_bb = bb_data['daily_bollinger_bands']['lower']
+    # bb_data is already the daily_bollinger_bands dict
+    if isinstance(bb_data, dict) and 'lower' in bb_data:
+        lower_bb = bb_data['lower']
+    elif isinstance(bb_data, dict) and 'daily_bollinger_bands' in bb_data:
+        lower_bb = bb_data['daily_bollinger_bands']['lower']
+    else:
+        return False
     closes = ohlc_data['Close']
     
     for i in range(max(0, idx - lookback), idx):
@@ -251,6 +257,11 @@ def calculate_dynamic_target_case_2a(ma10_val: float, ma20_val: float, entry_pri
         # Initial target is average of 10 MA and 20 MA
         target = (ma10_val + ma20_val) / 2
     
+    # For LONG trades, target must be ABOVE entry price
+    # If calculated target is below entry, use a percentage above entry
+    if target <= entry_price:
+        target = entry_price * 1.03  # 3% above entry
+    
     return target
 
 
@@ -343,11 +354,21 @@ def case_2a_signal(ohlc_data: pd.DataFrame, indicators: Dict, idx: int) -> Optio
     entry_price = ohlc_data.iloc[idx]['Close']
     target = calculate_dynamic_target_case_2a(ma10_val, ma20_val, entry_price)
     
-    # SL2 is 20% below entry (inverse of short position where SL is above)
-    # For long positions, we want SL below entry, so we calculate as percentage below
-    sl2 = entry_price * 0.80  # 20% below entry (inverse of short's 80% of target)
-    # Final SL is average of SL1 and SL2 (SL is fixed at entry)
+    # For LONG: Target must be ABOVE entry, SL must be BELOW entry
+    # Ensure target is above entry (if MAs are below entry, use percentage above)
+    if target <= entry_price:
+        # If target is below entry, calculate as percentage above entry
+        target = entry_price * 1.03  # 3% above entry as default
+    
+    # SL2: For LONG, SL should be below entry
+    # Use percentage below entry based on target distance
+    target_pct_above = (target - entry_price) / entry_price
+    sl2 = entry_price * (1 - target_pct_above)  # Same percentage below entry
+    
+    # Final SL is average of SL1 and SL2, but ensure it's below entry
     sl = (sl1 + sl2) / 2
+    if sl >= entry_price:
+        sl = entry_price * 0.98  # At least 2% below entry
     
     return {
         'case': '2a',
@@ -393,7 +414,13 @@ def case_2b_signal(ohlc_data: pd.DataFrame, indicators: Dict, idx: int) -> Optio
     if not bb_data or ma10.empty or ma20.empty:
         return None
     
-    upper_bb = bb_data['daily_bollinger_bands']['upper']
+    # bb_data is already the daily_bollinger_bands dict
+    if isinstance(bb_data, dict) and 'upper' in bb_data:
+        upper_bb = bb_data['upper']
+    elif isinstance(bb_data, dict) and 'daily_bollinger_bands' in bb_data:
+        upper_bb = bb_data['daily_bollinger_bands']['upper']
+    else:
+        return None
     
     if idx >= len(ma10) or idx >= len(ma20) or idx >= len(upper_bb):
         return None
@@ -468,6 +495,10 @@ def case_2b_signal(ohlc_data: pd.DataFrame, indicators: Dict, idx: int) -> Optio
                 target_pct = 0.03  # 3% for normal volatility
         target = current_price * (1 + target_pct)  # Above entry for long
     
+    # For LONG: Ensure target is ABOVE entry
+    if target <= current_price:
+        target = current_price * 1.03  # Force 3% above entry
+    
     return {
         'case': '2b',
         'direction': 'LONG',  # Long position
@@ -505,7 +536,13 @@ def case_2c_signal(ohlc_data: pd.DataFrame, indicators: Dict, idx: int) -> Optio
     if ma20.empty or not bb_data:
         return None
     
-    upper_bb = bb_data['daily_bollinger_bands']['upper']
+    # bb_data is already the daily_bollinger_bands dict
+    if isinstance(bb_data, dict) and 'upper' in bb_data:
+        upper_bb = bb_data['upper']
+    elif isinstance(bb_data, dict) and 'daily_bollinger_bands' in bb_data:
+        upper_bb = bb_data['daily_bollinger_bands']['upper']
+    else:
+        return None
     
     if idx >= len(ma20) or idx >= len(upper_bb):
         return None
@@ -540,18 +577,22 @@ def case_2c_signal(ohlc_data: pd.DataFrame, indicators: Dict, idx: int) -> Optio
         return None
     
     # Calculate target based on price position relative to 20 MA
+    # For LONG: Target must ALWAYS be ABOVE entry price
     if current_close < ma20_val:
-        # Price < 20 MA: target is 20 MA or 2% above 20 MA if 20 MA is < 1.5% from price
-        dist_to_ma20 = (ma20_val - current_close) / current_close
-        if dist_to_ma20 < 0.015:
-            target = ma20_val * 1.02  # 2% above 20 MA
+        # Price < 20 MA: target should be above entry, use 20 MA only if it's above entry
+        if ma20_val > current_close:
+            # Use 20 MA if it's above entry, otherwise use percentage above
+            target = max(ma20_val, current_close * 1.03)  # At least 3% above entry
         else:
-            target = ma20_val
+            target = current_close * 1.03  # 3% above entry
     else:
-        # Price > 20 MA: target is upper BB or 3% (whichever is smaller)
+        # Price > 20 MA: target is upper BB or 3% above entry (whichever is smaller but still above entry)
         target_bb = upper_bb_val
         target_3pct = current_close * 1.03  # 3% above
         target = min(target_bb, target_3pct)
+        # Ensure target is above entry
+        if target <= current_close:
+            target = current_close * 1.03  # Force 3% above entry
     
     return {
         'case': '2c',
