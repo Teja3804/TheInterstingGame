@@ -15,8 +15,6 @@ from indicator_calculations.bollinger_bands_calc import calculate_bollinger_band
 from indicator_calculations.vwap_calc import calculate_vwap
 from indicator_calculations.ohlc_aggregator import aggregate_daily_to_weekly, validate_ohlc_data
 from indicator_calculations.moving_averages_calc import calculate_10_ma, calculate_20_ma
-from indicator_calculations.trading_signals_increasing_market import detect_increasing_market_signals
-from indicator_calculations.trading_signals_decreasing_market import detect_decreasing_market_signals
 
 
 class StockAnalyzer:
@@ -67,14 +65,10 @@ class StockAnalyzer:
             'ma_20': ma20
         }
         
-        # Automatically detect trading signals for both increasing and decreasing market scenarios
-        signals = self.detect_trading_signals(ohlc_data)
-        
         return {
             'stock_name': stock_name,
             'indicators': self.indicators,
-            'ohlc_data': ohlc_data,
-            'trading_signals': signals
+            'ohlc_data': ohlc_data
         }
     
     def analyze_multiple_stocks(self, stocks_data: Dict[str, pd.DataFrame]) -> Dict:
@@ -96,47 +90,6 @@ class StockAnalyzer:
         
         return all_results
     
-    def detect_trading_signals(self, ohlc_data: pd.DataFrame, lookback_days: int = None) -> List[Dict]:
-        """
-        Detect trading signals for both increasing and decreasing market scenarios
-        
-        - Increasing market: Detects SHORT signals (expecting market to fall)
-        - Decreasing market: Detects LONG signals (expecting market to rise)
-        
-        Args:
-            ohlc_data: DataFrame with OHLC data
-            lookback_days: Number of days to check for signals (None for all)
-            
-        Returns:
-            List of dictionaries containing detected signals
-        """
-        if not hasattr(self, 'indicators') or not self.indicators:
-            raise ValueError("Must call analyze_stock() first to calculate indicators")
-        
-        signals = []
-        end_idx = len(ohlc_data)
-        start_idx = max(20, end_idx - lookback_days) if lookback_days else 20
-        
-        for idx in range(start_idx, end_idx):
-            # Check for increasing market signals (SHORT - expecting fall)
-            signal = detect_increasing_market_signals(ohlc_data, self.indicators, idx)
-            if signal:
-                signal['date'] = ohlc_data.iloc[idx]['Date'] if 'Date' in ohlc_data.columns else ohlc_data.index[idx]
-                signal['index'] = idx
-                signal['direction'] = signal.get('direction', 'SHORT')  # Default to SHORT for increasing market
-                signals.append(signal)
-            else:
-                # Check for decreasing market signals (LONG - expecting rise)
-                signal = detect_decreasing_market_signals(ohlc_data, self.indicators, idx)
-                if signal:
-                    signal['date'] = ohlc_data.iloc[idx]['Date'] if 'Date' in ohlc_data.columns else ohlc_data.index[idx]
-                    signal['index'] = idx
-                    signal['direction'] = signal.get('direction', 'LONG')  # Default to LONG for decreasing market
-                    signals.append(signal)
-        
-        return signals
-    
-    # Note: Export functionality removed. Integrate your own persistence/export as needed.
 
 
 def main():
@@ -146,24 +99,16 @@ def main():
     Example usage:
         analyzer = StockAnalyzer()
         result = analyzer.analyze_stock(ohlc_data, "AAPL")
-        signals = result['trading_signals']
-        
-        for signal in signals:
-            print(f"Case {signal['case']}: Entry={signal['entry_price']:.2f}, "
-                  f"SL={signal['stop_loss']:.2f}, Target={signal['target']:.2f}")
+        indicators = result['indicators']
     """
     print("Stock Market Analysis Algorithm")
     print("Ready for API data integration")
     print("\nFeatures:")
     print("- Calculates technical indicators (Volatility, Stochastic RSI, Bollinger Bands, VWAP, Moving Averages)")
-    print("- Detects trading signals for increasing market scenarios (Cases 1.a, 1.b, 1.c) - SHORT signals")
-    print("- Detects trading signals for decreasing market scenarios (Cases 2.a, 2.b, 2.c) - LONG signals")
-    print("- Automatically identifies falling/sideways market conditions during uptrends")
-    print("- Automatically identifies rising/sideways market conditions during downtrends")
     print("\nUse StockAnalyzer class to analyze OHLC data")
     print("Example: analyzer = StockAnalyzer()")
     print("         result = analyzer.analyze_stock(ohlc_data, 'STOCK_NAME')")
-    print("         signals = result['trading_signals']")
+    print("         indicators = result['indicators']")
 
 
 if __name__ == "__main__":
