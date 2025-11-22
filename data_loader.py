@@ -292,6 +292,10 @@ class ExcelDataLoader:
         # Convert OHLCV columns to numeric
         numeric_columns = ['open', 'high', 'low', 'close', 'volume']
         for col in numeric_columns:
+            # For volume, remove commas before converting (handles "74,18,162" format)
+            if col == 'volume':
+                # Convert to string, remove commas, then to numeric
+                stock_df[col] = stock_df[col].astype(str).str.replace(',', '').str.replace(' ', '')
             stock_df[col] = pd.to_numeric(stock_df[col], errors='coerce')
         
         # Remove rows with missing critical data
