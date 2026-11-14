@@ -52,6 +52,7 @@ Then start the app (README) and look at the three pages. Record the outcome here
   limiting and pacing, ingestion against a temporary SQLite database, and every API route.
 - `ruff check`, `ruff format --check`, `mypy --strict`: clean.
 - Frontend: `vitest` (5 tests), `eslint`, `tsc --noEmit` and `vite build`: clean.
+- GitHub Actions CI ran on the `phase-1` branch and passed (backend and frontend jobs).
 - Backend and frontend started together; the three pages were opened in headless Chrome against
   a throwaway database of **synthetic** candles (labelled as synthetic on screen), including a
   stale symbol and a symbol with no data.
@@ -63,7 +64,6 @@ Then start the app (README) and look at the three pages. Record the outcome here
 
 - `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `frontend/nginx.conf`: no
   Docker daemon was available.
-- `.github/workflows/ci.yml`: has not run on GitHub yet.
 - `YFinanceProvider` against the live Yahoo service, and the two integration tests. Its parsing,
   retries and pacing are tested only with a fake ticker.
 - Whether every watchlist symbol and benchmark resolves on Yahoo (`^NSEBANK` and the `.NS`
