@@ -1,0 +1,553 @@
+:root {
+  --paper: #edf0f3;
+  --surface: #ffffff;
+  --ink: #131c26;
+  --muted: #5a6875;
+  --line: #d5dbe1;
+  --up: #0a7b50;
+  --down: #b42318;
+  --us: #1f3a8a;
+  --in: #9a4b00;
+  --warn-bg: #fff3d1;
+  --warn-ink: #6b4500;
+  --error-bg: #fde7e4;
+  --radius: 4px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 15px/1.5 "IBM Plex Sans", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  color: var(--us);
+  text-underline-offset: 2px;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--us);
+  outline-offset: 2px;
+}
+
+h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+}
+
+h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+}
+
+h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 1rem 0 0.25rem;
+}
+
+/* Masthead */
+
+.masthead {
+  background: var(--ink);
+  color: #fff;
+  padding: 0.75rem clamp(1rem, 3vw, 2.5rem) 0.6rem;
+}
+
+.masthead-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 2rem;
+}
+
+.wordmark {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.masthead nav {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.masthead nav a {
+  color: #c5cfd9;
+  text-decoration: none;
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+}
+
+.masthead nav a.active {
+  color: #fff;
+  border-bottom-color: #fff;
+}
+
+.masthead a:focus-visible {
+  outline-color: #fff;
+}
+
+.standing-note {
+  margin: 0.4rem 0 0;
+  max-width: 78ch;
+  font-size: 0.82rem;
+  color: #c5cfd9;
+}
+
+main {
+  padding: 1.5rem clamp(1rem, 3vw, 2.5rem) 3rem;
+  max-width: 1440px;
+}
+
+/* Panels */
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem 1.5rem;
+}
+
+.market-US {
+  --market: var(--us);
+}
+
+.market-IN {
+  --market: var(--in);
+}
+
+.panel.market {
+  border-top: 3px solid var(--market);
+}
+
+.market-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.market h2 {
+  color: var(--market);
+}
+
+.clock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.9rem;
+  margin: 0;
+}
+
+.clock-time {
+  font-size: 3.25rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.clock-zone {
+  color: var(--muted);
+}
+
+.session {
+  margin: 0.4rem 0 0.9rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.session-open {
+  color: var(--up);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.2rem 1.25rem;
+  margin: 0 0 0.75rem;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0.75rem 0 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.counts strong {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin-right: 0.2rem;
+}
+
+.counts .count-stale strong {
+  color: var(--warn-ink);
+}
+
+.counts .count-missing strong {
+  color: var(--down);
+}
+
+/* Notices */
+
+.notice {
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.9rem;
+  max-width: 90ch;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--muted);
+  border-radius: var(--radius);
+}
+
+.notice-warn {
+  background: var(--warn-bg);
+  border-color: #e6cf8f;
+  border-left-color: #b98900;
+  color: var(--warn-ink);
+}
+
+.notice-error {
+  background: var(--error-bg);
+  border-color: #efb8b1;
+  border-left-color: var(--down);
+}
+
+.panel .notice {
+  margin-top: 0.75rem;
+}
+
+/* Buttons, tabs, toggles */
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.panel-head button {
+  background: var(--ink);
+  color: #fff;
+  border: 0;
+  border-radius: var(--radius);
+  padding: 0.45rem 0.9rem;
+  font-weight: 500;
+}
+
+.panel-head button:disabled {
+  background: var(--muted);
+  cursor: progress;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.tab {
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 0.5rem 1.1rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.tab[aria-selected="true"] {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.tab-US[aria-selected="true"] {
+  box-shadow: inset 0 3px 0 var(--us);
+}
+
+.tab-IN[aria-selected="true"] {
+  box-shadow: inset 0 3px 0 var(--in);
+}
+
+.tabs + .panel {
+  border-top-left-radius: 0;
+  border-top-width: 1px;
+  border-top-color: var(--line);
+}
+
+.toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.1rem;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.toggles label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* Tables */
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+thead th {
+  font-weight: 500;
+  font-size: 0.82rem;
+  color: var(--muted);
+  border-bottom-color: var(--ink);
+  white-space: normal;
+  vertical-align: bottom;
+}
+
+tbody tr:hover {
+  background: #f5f7f9;
+}
+
+.num {
+  text-align: right;
+}
+
+.strong {
+  font-weight: 600;
+}
+
+.up {
+  color: var(--up);
+}
+
+.down {
+  color: var(--down);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error-text {
+  color: var(--down);
+  white-space: normal;
+}
+
+.sub {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.tag {
+  margin-left: 0.5rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: var(--muted);
+  vertical-align: middle;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  border: 1px solid;
+}
+
+.badge-fresh {
+  color: var(--up);
+  background: #e6f4ee;
+  border-color: #a9d6c2;
+}
+
+.badge-stale {
+  color: var(--warn-ink);
+  background: var(--warn-bg);
+  border-color: #e6cf8f;
+}
+
+.badge-missing,
+.badge-unknown {
+  color: var(--muted);
+  background: #eef1f4;
+  border-color: var(--line);
+}
+
+.snapshot th {
+  font-weight: 400;
+  color: var(--muted);
+  white-space: normal;
+}
+
+.snapshot td {
+  font-weight: 500;
+  white-space: normal;
+}
+
+.snapshot .muted {
+  font-weight: 400;
+  font-size: 0.85rem;
+}
+
+.currency {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.8em;
+}
+
+.footnote {
+  margin: 0.75rem 0 0;
+  max-width: 95ch;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.key {
+  display: inline-block;
+  margin-right: 0.6rem;
+  padding-bottom: 1px;
+  border-bottom: 3px solid;
+}
+
+/* Stock detail */
+
+.crumb {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+}
+
+.detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 0.75rem 2rem;
+  margin-bottom: 1rem;
+  padding-left: 0.9rem;
+  border-left: 4px solid var(--market);
+}
+
+.detail-head h1 {
+  margin: 0;
+}
+
+.price {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.price-large .price-value {
+  font-size: 2.25rem;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.price-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.chart {
+  height: 640px;
+  margin-top: 0.5rem;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.levels,
+.issues {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.levels li,
+.issues li {
+  margin-bottom: 0.2rem;
+}
+
+@media (max-width: 900px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .clock-time {
+    font-size: 2.5rem;
+  }
+
+  .chart {
+    height: 520px;
+  }
+
+  .price {
+    align-items: flex-start;
+  }
+}
