@@ -1,0 +1,19 @@
+# docker compose up --build
+# Dashboard: http://localhost:5173   API: http://localhost:8000/api/health
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data        # SQLite file lives here; ./data is gitignored
+    environment:
+      STI_CORS_ORIGINS: http://localhost:5173
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
