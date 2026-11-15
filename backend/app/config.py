@@ -101,7 +101,89 @@ class ApiConfig(BaseModel):
     max_price_sessions: int = Field(gt=0)
 
 
+class ScoreThresholds(BaseModel):
+    buy_candidate: float
+    watch: float
+    exit_below: float
+
+
+class RejectionConfig(BaseModel):
+    min_sessions: int
+    min_avg_traded_value: dict[str, float]
+    max_atr_pct: float
+
+
+class RegimeConfig(BaseModel):
+    high_volatility_percentile: float
+    volatility_lookback_sessions: int
+
+
+class ScoringConfig(BaseModel):
+    weights: dict[str, float]
+    components: dict[str, dict[str, Any]]
+    thresholds: ScoreThresholds
+    rejections: RejectionConfig
+    regime: RegimeConfig
+
+
+class RiskLimits(BaseModel):
+    risk_per_trade_pct: float = Field(gt=0)
+    max_open_risk_pct: float = Field(gt=0)
+    max_stock_pct: float = Field(gt=0)
+    max_sector_pct: float = Field(gt=0)
+
+
+class PortfolioConfig(BaseModel):
+    equity: float = Field(gt=0)
+    cash: float = Field(ge=0)
+    lot_size: int = Field(ge=1)
+
+
+class PlanConfig(BaseModel):
+    stop_atr_multiple: float = Field(gt=0)
+    target_r_multiple: float = Field(gt=0)
+    max_holding_sessions: int = Field(gt=0)
+    trailing_lookback_sessions: int = Field(gt=0)
+    trailing_atr_multiple: float = Field(gt=0)
+
+
+class CostConfig(BaseModel):
+    cost_bps_per_side: float = Field(ge=0)
+    slippage_bps: float = Field(ge=0)
+
+
+class StressConfig(BaseModel):
+    extra_cost_bps_per_side: float
+    stop_slippage_atr: float
+    gap_r_multiple: float
+
+
+class AnalysisConfig(BaseModel):
+    min_trades_for_probability: int
+    bootstrap_paths: int
+    bootstrap_horizon_trades: int
+    bootstrap_seed: int
+    drawdown_alert_pct: float
+    losing_streak: int
+    stress: StressConfig
+
+
+class HedgeConfig(BaseModel):
+    beta_sessions: int
+
+
+class RiskConfig(BaseModel):
+    limits: RiskLimits
+    portfolio: dict[str, PortfolioConfig]
+    plan: PlanConfig
+    hedge: HedgeConfig
+    costs: dict[str, CostConfig]
+    analysis: AnalysisConfig
+
+
 class Settings(BaseModel):
+    scoring: ScoringConfig
+    risk: RiskConfig
     database: DatabaseConfig
     provider: ProviderConfig
     sessions: SessionsConfig
@@ -142,6 +224,8 @@ def load_settings(config_dir: Path | None = None) -> Settings:
     directory = config_dir or Path(os.environ.get("STI_CONFIG_DIR", REPO_ROOT / "config"))
     raw = _read_yaml(directory / "settings.yaml")
     raw["markets"] = _read_yaml(directory / "watchlists.yaml").get("markets", {})
+    raw["scoring"] = _read_yaml(directory / "scoring.yaml")
+    raw["risk"] = _read_yaml(directory / "risk.yaml")
 
     database_url = os.environ.get("STI_DATABASE_URL")
     if database_url:
