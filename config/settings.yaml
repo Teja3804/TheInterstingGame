@@ -5,7 +5,7 @@ database:
 provider:
   name: yfinance
   label: "Yahoo Finance via yfinance (unofficial, free, delayed / end-of-day)"
-  history_years: 2            # minimum daily history to keep
+  history_years: 5            # daily history to keep (spec minimum is 2; more gives backtests more trades)
   min_request_interval_seconds: 1.5
   max_retries: 4
   backoff_base_seconds: 2.0   # delay = base * 2^attempt
@@ -21,7 +21,7 @@ sessions:
 
 data_quality:
   suspicious_move_pct: 25.0   # abs single-day move in raw close with no recorded split
-  missing_session_lookback_days: 730
+  missing_session_lookback_days: 1830
 
 indicators:
   sma_windows: [20, 50, 200]

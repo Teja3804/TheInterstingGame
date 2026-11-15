@@ -1,0 +1,38 @@
+# Fetches real market data on a GitHub runner and keeps the SQLite file as a workflow
+# artifact (never committed). Run it from the Actions tab, or by changing
+# .github/fetch-trigger.
+name: Fetch market data
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/fetch-trigger
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - run: pip install -e "./backend"
+      - name: Fetch every configured symbol
+        working-directory: backend
+        run: |
+          set -o pipefail
+          python -m app.cli 2>fetch-errors.log | tee fetch-report.txt || true
+          echo "---- provider messages (last 40 lines) ----"
+          tail -n 40 fetch-errors.log || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: market-data
+          path: |
+            data/market.db
+            backend/fetch-report.txt
+          if-no-files-found: error
+          retention-days: 7

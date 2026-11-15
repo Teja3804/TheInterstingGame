@@ -1,0 +1,26 @@
+# Fixed watchlists for unit tests (independent of the real config/ folder).
+markets:
+  US:
+    name: United States
+    timezone: America/New_York
+    currency: USD
+    calendar: XNYS
+    relative_strength_benchmark: "^GSPC"
+    symbols: [AAPL, MSFT, NVDA, AMZN, GOOGL]
+    benchmarks: ["^GSPC", "^NDX"]
+    hedge_instrument: SPY
+    extra_symbols: [SPY, QQQ]
+    sector_references:
+      Test Sector: XLK
+  IN:
+    name: India
+    timezone: Asia/Kolkata
+    currency: INR
+    calendar: XBOM
+    relative_strength_benchmark: "^NSEI"
+    symbols: [RELIANCE.NS, TCS.NS, INFY.NS, HDFCBANK.NS, ICICIBANK.NS, ITC.NS]
+    benchmarks: ["^NSEI", "^NSEBANK"]
+    hedge_instrument: NIFTYBEES.NS
+    extra_symbols: [NIFTYBEES.NS]
+    sector_references:
+      Test Sector: "^CNXIT"

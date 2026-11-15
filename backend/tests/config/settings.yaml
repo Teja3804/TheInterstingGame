@@ -1,0 +1,45 @@
+# Fixed settings for unit tests, so editing config/ never breaks them.
+database:
+  url: sqlite:///./data/market.db
+
+provider:
+  name: yfinance
+  label: "Yahoo Finance via yfinance (unofficial, free, delayed / end-of-day)"
+  history_years: 2            # minimum daily history to keep
+  min_request_interval_seconds: 1.5
+  max_retries: 4
+  backoff_base_seconds: 2.0   # delay = base * 2^attempt
+  backoff_max_seconds: 60.0
+  rate_limit_cooldown_seconds: 30.0   # extra wait added when the provider reports rate limiting
+  cache_ttl_minutes: 60       # skip re-download when data is fresh and was fetched this recently
+  incremental_overlap_days: 7 # re-download this many calendar days before the last stored candle
+  profile_ttl_days: 7
+
+sessions:
+  close_buffer_minutes: 30    # a session counts as completed this long after its close
+  calendar_end_warning_days: 45   # warn when the calendar library's data ends this soon
+
+data_quality:
+  suspicious_move_pct: 25.0   # abs single-day move in raw close with no recorded split
+  missing_session_lookback_days: 730
+
+indicators:
+  sma_windows: [20, 50, 200]
+  ema_windows: [9, 21]
+  rsi_period: 14
+  macd: {fast: 12, slow: 26, signal: 9}
+  atr_period: 14
+  bollinger: {window: 20, num_std: 2.0}
+  relative_volume_window: 20
+  return_windows: [1, 5, 10, 20]
+  relative_strength_window: 20
+  volatility_window: 20
+  trading_days_per_year: 252
+  support_resistance:
+    pivot_window: 5           # candles on each side that confirm a swing high/low
+    lookback_sessions: 250
+    max_levels: 3             # nearest levels reported on each side of the last close
+
+api:
+  default_price_sessions: 520
+  max_price_sessions: 2000

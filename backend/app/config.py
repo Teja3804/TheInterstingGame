@@ -21,6 +21,19 @@ class MarketConfig(BaseModel):
     relative_strength_benchmark: str
     symbols: list[str]
     benchmarks: list[str]
+    hedge_instrument: str | None = None
+    extra_symbols: list[str] = Field(default_factory=list)
+    sector_references: dict[str, str] = Field(default_factory=dict)
+
+    def every_symbol(self) -> list[str]:
+        """Benchmarks, sector references and extras first, then the watchlist; no repeats."""
+        ordered = [
+            *self.benchmarks,
+            *self.extra_symbols,
+            *self.sector_references.values(),
+            *self.symbols,
+        ]
+        return list(dict.fromkeys(ordered))
 
 
 class DatabaseConfig(BaseModel):
@@ -101,7 +114,7 @@ class Settings(BaseModel):
     def market_of(self, symbol: str) -> str | None:
         """Market code a configured symbol belongs to, or None if it is not configured."""
         for code, market in self.markets.items():
-            if symbol in market.symbols or symbol in market.benchmarks:
+            if symbol in market.every_symbol():
                 return code
         return None
 
@@ -109,13 +122,12 @@ class Settings(BaseModel):
         return any(symbol in m.benchmarks for m in self.markets.values())
 
     def all_symbols(self) -> list[tuple[str, str]]:
-        """(market, symbol) for every watchlist symbol and benchmark, benchmarks first."""
-        out: list[tuple[str, str]] = []
-        for code, market in self.markets.items():
-            for symbol in [*market.benchmarks, *market.symbols]:
-                if (code, symbol) not in out:
-                    out.append((code, symbol))
-        return out
+        """(market, symbol) for everything that gets fetched, reference symbols first."""
+        return [
+            (code, symbol)
+            for code, market in self.markets.items()
+            for symbol in market.every_symbol()
+        ]
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:

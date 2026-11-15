@@ -91,7 +91,7 @@ def test_empty_database_shows_unavailable_not_numbers(api: Api) -> None:
 
     status = api.client.get("/api/sources/status").json()
     us = next(m for m in status["markets"] if m["code"] == "US")
-    assert us["freshness_counts"] == {"fresh": 0, "stale": 0, "missing": 9, "unknown": 0}
+    assert us["freshness_counts"] == {"fresh": 0, "stale": 0, "missing": 10, "unknown": 0}
     assert status["provider"]["last_success_utc"] is None
 
 
@@ -99,12 +99,12 @@ def test_ingest_then_every_page_endpoint_has_data(
     api: Api, settings: Settings, daily: pd.DataFrame
 ) -> None:
     result = api.client.post("/api/ingest", json={}).json()
-    assert (result["fetched"], result["failed"]) == (17, 0)
+    assert (result["fetched"], result["failed"]) == (20, 0)
     assert {r["symbol"] for r in result["results"]} == {s for _, s in settings.all_symbols()}
 
     status = api.client.get("/api/sources/status").json()
     counts = {m["code"]: m["freshness_counts"] for m in status["markets"]}
-    assert counts["US"]["fresh"] == 9 and counts["IN"]["fresh"] == 8
+    assert counts["US"]["fresh"] == 10 and counts["IN"]["fresh"] == 10
     assert status["provider"]["data_kind"] == "delayed / end-of-day"
     assert status["provider"]["last_success_utc"] == "2024-03-09T12:00:00Z"
     assert status["scheduler"]["active"] is False

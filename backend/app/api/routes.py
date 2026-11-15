@@ -78,7 +78,7 @@ def sources_status(
             freshness.MISSING: 0,
             freshness.UNKNOWN: 0,
         }
-        for symbol in [*market.benchmarks, *market.symbols]:
+        for symbol in market.every_symbol():
             stored = ranges.get(symbol)
             state = freshness.classify(stored[1] if stored else None, clock.last_completed_session)
             counts[state] += 1
