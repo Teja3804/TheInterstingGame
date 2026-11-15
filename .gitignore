@@ -31,3 +31,5 @@ frontend/dist/
 .DS_Store
 .idea/
 .vscode/
+site/
+snapshot-data/
