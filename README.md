@@ -41,7 +41,7 @@ npm install
 npm run dev                       # http://localhost:5173
 ```
 
-Open <http://localhost:5173>. "Refresh data now" on the Overview page runs the same fetch as
+Open <http://localhost:5173>. "Refresh data now" on the Data screen runs the same fetch as
 `python -m app.cli`. API docs: <http://localhost:8000/docs>.
 
 `python -m app.cli --force` ignores the cache and re-downloads everything;
@@ -54,7 +54,7 @@ docker compose up --build
 ```
 
 Dashboard at <http://localhost:5173>, API at <http://localhost:8000/api/health>. The SQLite file
-is kept in `./data` (gitignored). Fetch data from the Overview page, or:
+is kept in `./data` (gitignored). Fetch data from the Data screen, or:
 
 ```bash
 docker compose exec backend python -m app.cli
