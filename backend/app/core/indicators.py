@@ -209,3 +209,18 @@ def support_resistance(
     support = sorted((p for p in pivots if p.price < last_close), key=lambda p: -p.price)
     resistance = sorted((p for p in pivots if p.price > last_close), key=lambda p: p.price)
     return support[:max_levels], resistance[:max_levels]
+
+
+def beta(close: pd.Series, benchmark_close: pd.Series, sessions: int) -> tuple[float, float] | None:
+    """(beta, correlation) of daily returns over the last `sessions` sessions both series
+    share. None when there is not enough overlapping history or the benchmark is flat."""
+    joined = pd.concat({"s": close, "b": benchmark_close}, axis=1, join="inner").pct_change()
+    joined = joined.dropna().tail(sessions)
+    if len(joined) < sessions:
+        return None
+    variance = float(joined["b"].var(ddof=1))
+    if not math.isfinite(variance) or variance <= 0:
+        return None
+    covariance = float(joined["s"].cov(joined["b"]))
+    correlation = float(joined["s"].corr(joined["b"]))
+    return covariance / variance, correlation
