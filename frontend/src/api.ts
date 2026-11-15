@@ -195,3 +195,289 @@ export const api = {
       body: "{}",
     }),
 };
+
+// ---- Screens: stocks, risk analysis, strategy comparison -------------------------------
+
+export interface Suggestion {
+  action: string;
+  reasons: string[];
+}
+
+export interface Regime {
+  label: string;
+  benchmark: string;
+  as_of: string | null;
+  evidence: string[];
+  rule?: string;
+}
+
+export interface StockRow extends Provenance {
+  name: string | null;
+  sector: string | null;
+  score: number | null;
+  suggestion: Suggestion;
+  values: Values;
+  spark?: (number | null)[];
+}
+
+export interface StocksMarket {
+  code: string;
+  name: string;
+  currency: string;
+  timezone: string;
+  last_completed_session: string | null;
+  regime: Regime;
+  rows: StockRow[];
+}
+
+export interface StocksResponse {
+  generated_at_utc: string;
+  thresholds: { buy_candidate: number; watch: number; exit_below: number };
+  note: string;
+  markets: StocksMarket[];
+}
+
+export interface Summary {
+  trades: number;
+  wins: number;
+  win_rate: number | null;
+  win_rate_low: number | null;
+  win_rate_high: number | null;
+  avg_win_r: number | null;
+  avg_loss_r: number | null;
+  expectancy_r: number | null;
+  profit_factor: number | null;
+  total_r: number;
+  total_return_pct: number;
+  max_drawdown_pct: number;
+  avg_holding_sessions: number | null;
+  avg_cost_pct: number | null;
+  worst_r: number | null;
+  best_r: number | null;
+  longest_losing_streak: number;
+  gap_stops: number;
+  worst_gap_r: number | null;
+  exit_reasons: Record<string, number>;
+}
+
+export interface TradeRow {
+  symbol: string;
+  entry_date: string | null;
+  exit_date: string | null;
+  reason: string;
+  holding_sessions: number;
+  r_multiple: number | null;
+  return_pct: number | null;
+}
+
+export interface Insight {
+  available: boolean;
+  reason?: string;
+  label_note: string;
+  regime: Regime;
+  suggestion: Suggestion;
+  score: number | null;
+  weight_used: number | null;
+  components: {
+    key: string;
+    label: string;
+    formula: string;
+    weight: number;
+    score: number | null;
+    unavailable_reason: string | null;
+    inputs: { label: string; value: number | null; kind: "price" | "pct" | "number" }[];
+  }[];
+  rejections: string[];
+  not_checked: string[];
+  bullish: string[];
+  bearish: string[];
+  plan: {
+    entry_reference: number;
+    entry_condition: string;
+    stop: number;
+    stop_rule: string;
+    target: number;
+    target_rule: string;
+    risk_per_share: number;
+    risk_pct_of_price: number;
+    reward_risk_after_costs: number;
+    estimated_round_trip_cost_pct: number;
+    max_holding_sessions: number;
+    sizing: {
+      example_equity: number;
+      shares: number;
+      binding_constraint: string;
+      position_value: number;
+      risk_amount: number;
+      risk_budget: number;
+      gap_loss_amount: number;
+      gap_r_multiple: number;
+      note: string;
+    };
+    scenarios: { name: string; text: string; changes_the_plan: string }[];
+  } | null;
+  if_held: {
+    action: string;
+    reasons: string[];
+    trailing_stop: number | null;
+    sma_50: number | null;
+    max_holding_sessions: number;
+    options: string[];
+  };
+  hedge: {
+    instrument: string | null;
+    benchmark: string;
+    beta_sessions: number;
+    beta: number | null;
+    correlation?: number;
+    variance_explained_pct?: number;
+    hedge_value_per_100?: number;
+    instrument_last_close?: number | null;
+    unavailable_reason?: string;
+    limitations: string[];
+  };
+  alternatives: { symbol: string; score: number }[];
+  backtest_history: { label: string; strategy: string; summary: Summary; recent: TradeRow[] };
+}
+
+export interface SymbolBundle {
+  prices: PricesResponse;
+  indicators: IndicatorsResponse;
+  insight: Insight;
+}
+
+export type Probability =
+  | { available: false; reason: string }
+  | {
+      available: true;
+      sample_trades: number;
+      horizon_trades: number;
+      paths: number;
+      prob_profit: number;
+      prob_drawdown: number;
+      drawdown_threshold_pct: number;
+      prob_losing_streak: number;
+      losing_streak: number;
+      return_p05_pct: number;
+      return_p50_pct: number;
+      return_p95_pct: number;
+      worst_drawdown_p95_pct: number;
+    };
+
+export interface Portfolio {
+  max_positions: number;
+  trades_taken: number;
+  signals_skipped: number;
+  total_return_pct: number;
+  max_drawdown_pct: number;
+  note: string;
+}
+
+export type CurvePoint = { date: string; return_pct: number };
+export type Bucket = Summary & { name: string };
+
+export interface ExecutionNote {
+  fills: string;
+  stop: string;
+  target: string;
+  time_exit: string;
+  costs: Record<string, { cost_bps_per_side: number; slippage_bps: number }>;
+  risk_per_trade_pct: number;
+  r_definition: string;
+}
+
+export interface RiskMarket {
+  code: string;
+  name: string;
+  currency: string;
+  period: { from: string | null; to: string | null };
+  symbols_tested: number;
+  summary: Summary;
+  probability: Probability;
+  by_volatility: Bucket[];
+  by_regime: Bucket[];
+  by_period: Bucket[];
+  stress: {
+    name: string;
+    expectancy_r: number | null;
+    win_rate: number | null;
+    total_return_pct: number;
+    max_drawdown_pct: number;
+  }[];
+  loss_limits: {
+    risk_per_trade_pct: number;
+    max_open_risk_pct: number;
+    max_simultaneous_trades_at_full_risk: number;
+    worst_tested_trade_r: number | null;
+    worst_tested_trade_pct_of_equity: number | null;
+    hypothetical_gap_r: number;
+    all_open_trades_gap_pct_of_equity: number;
+  };
+  findings: string[];
+  portfolio: Portfolio;
+  equity_curve: CurvePoint[];
+  open_trades: TradeRow[];
+}
+
+export interface RiskResponse {
+  label: string;
+  strategy: { name: string; rule: string };
+  execution: ExecutionNote;
+  warnings: string[];
+  markets: RiskMarket[];
+}
+
+export interface StrategyRow {
+  key: string;
+  name: string;
+  rule: string;
+  is_current: boolean;
+  summary: Summary;
+  probability: Probability;
+  portfolio: Portfolio;
+  equity_curve: CurvePoint[];
+  signals_now: string[];
+  in_trade_now: string[];
+  expectancy_vs_current_r: number | null;
+}
+
+export interface StrategiesResponse {
+  label: string;
+  execution: ExecutionNote;
+  warnings: string[];
+  markets: {
+    code: string;
+    name: string;
+    period: { from: string | null; to: string | null };
+    symbols_tested: number;
+    as_of: string | null;
+    benchmark: { symbol: string; buy_and_hold_return_pct: number | null; note: string };
+    strategies: StrategyRow[];
+  }[];
+}
+
+/** A hosted snapshot build reads exported JSON files instead of calling the backend. */
+export const SNAPSHOT = import.meta.env.VITE_STATIC === "1";
+
+const safeName = (symbol: string) => symbol.replace(/[^A-Za-z0-9.-]/g, "_");
+const SESSIONS = 260;
+
+export const screens = {
+  status: () =>
+    request<SourcesStatus & { snapshot?: { exported_at_utc: string; note: string } }>(
+      SNAPSHOT ? "./data/status.json" : "/api/sources/status",
+    ),
+  stocks: () => request<StocksResponse>(SNAPSHOT ? "./data/stocks.json" : "/api/stocks"),
+  risk: () => request<RiskResponse>(SNAPSHOT ? "./data/risk.json" : "/api/risk"),
+  strategies: () =>
+    request<StrategiesResponse>(SNAPSHOT ? "./data/strategies.json" : "/api/strategies"),
+  symbol: async (symbol: string): Promise<SymbolBundle> => {
+    if (SNAPSHOT) return request<SymbolBundle>(`./data/symbols/${safeName(symbol)}.json`);
+    const [prices, indicators, insight] = await Promise.all([
+      api.prices(symbol, SESSIONS),
+      api.indicators(symbol, SESSIONS),
+      request<Insight>(`/api/symbols/${sym(symbol)}/insight`),
+    ]);
+    return { prices, indicators, insight };
+  },
+};

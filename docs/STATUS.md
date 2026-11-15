@@ -1,102 +1,105 @@
 # Status
 
-Last updated: 2026-11-14. Current phase: **Phase 1 (built; real-data check still open)**.
+Last updated: 2026-11-14 (US time). On request, the one-phase-at-a-time rule was set aside to
+build a first version of three screens that span Phases 2, 2b and 4. Branch: `three-screens`.
+
+## What exists
+
+Three screens you switch between, plus a Data screen, with a United States / India switch:
+
+1. **Stocks**: 20 US and 20 Indian stocks with price history. Selecting one shows the
+   rule-based suggestion (Buy candidate, Watch, No trade, Rejected), the score breakdown with
+   its inputs, a trade plan (entry, stop, target, size, three scenarios), a place to record
+   your own position (hold / exit / hedge advice, unrealised result, hedge estimate),
+   stronger alternatives, and how the current strategy did on that stock.
+2. **Risk analysis**: the current strategy (the spec's scoring model) backtested: results,
+   chances over the next 20 trades, results split by volatility, market regime and period,
+   harsher-conditions stress cases, and how large a loss can get.
+3. **Strategies**: five alternative rule sets run under identical execution and compared
+   with the current one, with return curves and what each says on the latest candle.
+
+Two ways to see it:
+
+- **Hosted snapshot** (a private page on claude.ai): read-only data frozen at export time.
+  Positions you enter there are saved with the page.
+- **The app itself** (README): backend + frontend with live refresh.
 
 ## Phase 1 exit criteria
 
 | # | Criterion | State |
 |---|---|---|
-| 1 | Tests, linters and type checks pass | **Verified** (see below) |
-| 2 | Real data fetched for every watchlist symbol and benchmark | **Not done.** The build environment blocks Yahoo Finance (HTTP 403 from its network proxy), so all 17 symbols failed there for that reason. Must be run on a machine with normal internet access. |
-| 3 | Backend and frontend run; all 3 pages show real data | **Partly.** Both run and all 3 pages render, checked with synthetic data only. Not yet seen with real data. |
-| 4 | README has setup and run commands (local and Docker) | Done |
-| 5 | This file lists features, limitations and next steps | Done |
-| 6 | Work committed in small commits | Done |
-
-**To close criteria 2 and 3** on your own machine:
-
-```bash
-cd backend && pip install -e ".[dev]"
-pytest -m integration        # every configured symbol resolves on Yahoo Finance
-python -m app.cli            # fetch 2 years for all 17 symbols; prints failures with reasons
-```
-
-Then start the app (README) and look at the three pages. Record the outcome here.
-
-## Implemented
-
-- **Scaffold:** backend, frontend, config, docs, tests, Docker files, GitHub Actions CI,
-  `.gitignore`, `.env.example`, README.
-- **Data layer:** `MarketDataProvider` interface and `YFinanceProvider`; SQLite storage unique on
-  symbol + date + source with in-place updates; cache window; minimum delay between requests;
-  retry with exponential backoff and an extra cooldown on rate limiting; response validation;
-  missing-session, unexpected-session, zero-volume and suspicious-move detection; partial-candle
-  exclusion; splits and dividends stored; full re-download when a new split **or dividend**
-  appears; profile (name, sector, industry, exchange, currency); 2 years of history requested.
-- **Watchlists and benchmarks** in `config/watchlists.yaml`.
-- **Calendars and time zones** for US (`XNYS`) and India (`XBOM`) from `exchange_calendars`,
-  used for market status, last completed session and freshness.
-- **Indicators** (pure functions): SMA 20/50/200, EMA 9/21, RSI 14 (Wilder), MACD 12/26/9,
-  ATR 14 (Wilder), Bollinger 20/2σ, relative volume vs the previous 20 sessions,
-  1/5/10/20-session returns, relative strength vs the market's benchmark, annualised volatility,
-  drawdown, confirmed swing-pivot support and resistance.
-- **API:** the six Phase 1 routes, plus `python -m app.cli` for a manual refresh.
-- **Dashboard:** Overview, Watchlist (US and India tabs) and Stock Detail.
+| 1 | Tests, linters, type checks pass | Verified |
+| 2 | Real data fetched for every symbol and benchmark | **Verified on GitHub Actions**: 67 of 67 symbols fetched, 0 failed, about 5 years each. `^CNXMEDIA` returned only 1 row, so it is unusable (see limitations). |
+| 3 | Backend and frontend run; pages show real data | Verified in the build environment using that real database (copied from the `market-data` branch). Not yet run on your own machine. |
+| 4 to 6 | README, STATUS, small commits | Done |
 
 ## Verified by running
 
-- `pytest`: 84 backend tests pass (2 integration tests deselected). They cover indicator maths
-  against hand-calculated values and independent loop implementations, no look-ahead,
-  insufficient history, data gaps, stale prices, stock splits, duplicate rows, partial-candle
-  exclusion, time zones and daylight saving, holidays and early closes, provider retries, rate
-  limiting and pacing, ingestion against a temporary SQLite database, and every API route.
-- `ruff check`, `ruff format --check`, `mypy --strict`: clean.
-- Frontend: `vitest` (5 tests), `eslint`, `tsc --noEmit` and `vite build`: clean.
-- GitHub Actions CI ran on the `phase-1` branch and passed (backend and frontend jobs).
-- Backend and frontend started together; the three pages were opened in headless Chrome against
-  a throwaway database of **synthetic** candles (labelled as synthetic on screen), including a
-  stale symbol and a symbol with no data.
-- A real `python -m app.cli` run in the build environment: all 17 symbols failed with
-  "CONNECT tunnel failed, response 403" and each failure was recorded and reported. Nothing was
-  stored.
+- Backend: 138 tests pass; `ruff`, `ruff format --check`, `mypy --strict` clean. New tests cover
+  position sizing (hand-worked), the trade simulator (hand-built price paths: next-open fills,
+  stops, gaps, targets, time and signal exits, costs), statistics and resampling, scoring,
+  regime, suggestions, strategy rules, no look-ahead, and the new API routes end to end.
+- Frontend: 10 tests, `eslint`, `tsc --noEmit`, production build clean.
+- Real data: the `Fetch market data` workflow ran on GitHub and fetched all 67 symbols.
+- All screens opened in headless Chrome from a static build fed with the real data.
+- The snapshot export (`python -m app.export`) ran on the real database.
 
-## Written but not run
+## Written but not run or not checked
 
-- `docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, `frontend/nginx.conf`: no
-  Docker daemon was available.
-- `YFinanceProvider` against the live Yahoo service, and the two integration tests. Its parsing,
-  retries and pacing are tested only with a fake ticker.
-- Whether every watchlist symbol and benchmark resolves on Yahoo (`^NSEBANK` and the `.NS`
-  symbols in particular) is unconfirmed.
+- The hosted page itself could not be opened from the build environment. The identical build
+  was checked locally, but saving positions through the hosted page's database is unverified.
+- `docker compose up`: no Docker daemon was available.
+- The app has not been run on your machine.
+- The live "Refresh data now" button against Yahoo (Yahoo is blocked in the build environment;
+  the same ingestion code ran successfully on GitHub Actions).
+
+## Deviations from INSTRUCTIONS.md to know about
+
+- **Several phases at once**, at your request. Each part is a first version, not a finished phase.
+- **Arithmetic in the page for positions.** Positions live with the viewer (hosted page or
+  browser), so quantity x price, unrealised result, sessions held and hedge value are computed
+  in `frontend/src/positionMath.ts` (tested). Everything else is computed by the backend.
+- **A `market-data` branch** holds the fetched SQLite file (public price candles only; no
+  positions, no secrets). It exists so the hosted snapshot can be built. `data/` and `*.db`
+  stay gitignored on code branches. Delete the branch if you would rather not keep it.
+- **Example portfolio sizes** (10,000 USD and 500,000 INR) in `config/risk.yaml` drive the
+  position-size illustrations. Replace them with your own.
 
 ## Known limitations
 
-- yfinance is unofficial, free and delayed; it can rate-limit or break without notice.
-- `close` is split-adjusted by the provider, not the raw traded price. True unadjusted prices are
-  not stored separately; they can be derived from `close` and the stored splits.
-- NSE symbols use the BSE calendar (`XBOM`); `exchange_calendars` has no NSE calendar. Its Indian
-  holiday data currently ends 2026-12-31. The Overview page shows the end date and warns when it
-  is within 45 days.
-- Calendar mismatches (for example special sessions) appear as "missing session" or "unexpected
-  session" warnings rather than being resolved.
-- A symbol listed for less than 2 years is fully re-downloaded on each refresh after the cache
-  window.
-- Relative strength is unavailable when the benchmark's latest candle differs from the stock's.
-- Support and resistance are simple swing pivots, with no clustering or strength ranking.
-- The manual refresh runs inside the HTTP request and should take roughly a minute for 17 symbols (estimated from the configured request delay, not measured).
-- Profiles for indices and ETFs usually have no sector or industry; the page says so.
-- Position-size maths and its test (listed under required test coverage) belong to the Phase 2
-  trade planner and are not built yet.
+- Everything on the Risk and Strategies screens is a **BACKTEST** on past data. It does not
+  predict results.
+- **Survivorship bias**: the lists are today's large companies, which flatters past results.
+- The score weights are the spec's untested starting values. Nothing was fitted, so there is
+  no out-of-sample period; first-half and second-half results are shown instead.
+- Probabilities come from resampling past trades and assume independence; real losses cluster.
+- **No earnings dates or news.** Event risk inside the holding window is not checked, in
+  suggestions or in backtests. The screens say so.
+- Costs and slippage are estimates in `config/risk.yaml`.
+- Per-trade statistics count every signal. "Return with limits" allows at most 4 positions at
+  once and takes competing signals in date then alphabetical order.
+- The per-stock size shown does not know your other holdings, so the sector and open-risk
+  limits are applied as if the portfolio were empty.
+- The 20-stock lists are a hand-picked selection of large companies, not a live ranking.
+- Sector alignment: `^CNXMEDIA` (Communication Services, India) returned 1 row, so that
+  component is unavailable for Bharti Airtel and its score uses the remaining weights.
+- Indian sessions use the BSE calendar for NSE symbols; calendar mismatches appear as
+  data-quality warnings. The library's Indian holiday data ends 2026-12-31.
+- The hosted snapshot does not update by itself. Refreshing it needs a new fetch and export.
+- Suggestions use daily candles only and are rule outputs, not advice.
+- yfinance is unofficial, delayed and can break without notice.
+- `close` is split-adjusted by the provider; true unadjusted prices are not stored separately.
 
-## Not built (later phases)
+## Not built
 
-Market regime, opportunity scoring, trade planner, position sizing, portfolio and risk limits,
-alerts, scheduler, paper trading, backtesting, hedging, news, earnings dates, sector references.
+Scheduler and alerts, paper trading, portfolio-level risk across your real holdings,
+correlation and concentration analysis, earnings and news, Settings screen, FX reporting,
+automatic refresh of the hosted snapshot, tuning or validating the score weights.
 
-## Next steps (Phase 2, only when asked)
+## Next steps (only when asked)
 
-1. Close Phase 1 criteria 2 and 3 with a real fetch.
-2. Market regime classification with its evidence.
-3. Explainable opportunity scoring and hard rejection rules (`config/scoring.yaml`).
-4. Risk limits and position sizing with tests (`config/risk.yaml`).
-5. Trade planner and Opportunity Scanner pages.
+1. Open the hosted page and confirm saving a position works; run the app on your machine.
+2. Decide whether to keep the `market-data` branch and whether to schedule regular refreshes.
+3. Enter your real portfolio sizes in `config/risk.yaml`.
+4. Add earnings dates (needs a data source decision) so event risk can be checked.
+5. Scheduler and alerts (Phase 3).

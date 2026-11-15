@@ -8,6 +8,7 @@ import pytest
 from app.config import Settings, load_settings
 
 FIXTURES = Path(__file__).parent / "fixtures"
+TEST_CONFIG = Path(__file__).parent / "config"
 REPO_CONFIG = Path(__file__).resolve().parents[2] / "config"
 
 
@@ -19,7 +20,7 @@ def load_fixture(name: str) -> pd.DataFrame:
 
 @pytest.fixture(scope="session")
 def settings() -> Settings:
-    return load_settings(REPO_CONFIG)
+    return load_settings(TEST_CONFIG)
 
 
 @pytest.fixture(scope="session")

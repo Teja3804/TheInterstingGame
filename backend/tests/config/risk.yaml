@@ -1,0 +1,41 @@
+# Copy used by unit tests.
+# Risk limits and trade-plan settings (CONTEXT.md sections 8 to 10).
+limits:
+  risk_per_trade_pct: 0.5       # of portfolio equity
+  max_open_risk_pct: 2.0
+  max_stock_pct: 10.0
+  max_sector_pct: 25.0
+
+# EXAMPLE portfolio sizes used for position-size illustrations. Replace with your own.
+# USD and INR are never added together.
+portfolio:
+  US: {equity: 10000, cash: 10000, lot_size: 1}
+  IN: {equity: 500000, cash: 500000, lot_size: 1}
+
+plan:
+  stop_atr_multiple: 2.0        # initial stop = entry - this x ATR 14
+  target_r_multiple: 2.0        # target = entry + this x (entry - stop)
+  max_holding_sessions: 21      # about 30 calendar days
+  trailing_lookback_sessions: 22
+  trailing_atr_multiple: 3.0    # trailing stop = highest close in lookback - this x ATR
+
+hedge:
+  beta_sessions: 120
+
+# ESTIMATED round-trip frictions per side, in basis points of traded value. Check them
+# against your own broker and tax position before relying on any backtest number.
+costs:
+  US: {cost_bps_per_side: 2.0, slippage_bps: 5.0}
+  IN: {cost_bps_per_side: 12.0, slippage_bps: 8.0}
+
+analysis:
+  min_trades_for_probability: 30   # below this, probabilities are shown as unavailable
+  bootstrap_paths: 5000
+  bootstrap_horizon_trades: 20
+  bootstrap_seed: 20261114
+  drawdown_alert_pct: 5.0          # probability of an equity drawdown at least this deep
+  losing_streak: 5
+  stress:
+    extra_cost_bps_per_side: 10.0
+    stop_slippage_atr: 0.5         # every stop fills this many ATR worse
+    gap_r_multiple: 3.0            # hypothetical overnight gap loss, in R, for the worst case

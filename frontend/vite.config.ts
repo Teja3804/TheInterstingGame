@@ -4,6 +4,8 @@ import { defineConfig } from "vite";
 
 // The dev server forwards /api to the backend so the browser only talks to one origin.
 export default defineConfig({
+  // Relative asset paths so the same build also works as a hosted snapshot.
+  base: "./",
   plugins: [react()],
   server: {
     port: 5173,

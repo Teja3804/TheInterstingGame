@@ -1,4 +1,6 @@
-# Demonstration watchlists. Configurable; these are NOT investment recommendations.
+# Watchlists. Configurable; these are NOT investment recommendations.
+# The 20-stock lists are a hand-picked selection of large companies, not a live
+# market-cap ranking. Edit them freely.
 # Each market has its own calendar, time zone, currency and benchmark.
 markets:
   US:
@@ -7,13 +9,47 @@ markets:
     currency: USD
     calendar: XNYS            # exchange_calendars code (NYSE; NASDAQ shares its sessions)
     relative_strength_benchmark: "^GSPC"
-    symbols: [AAPL, MSFT, NVDA, AMZN, GOOGL, SPY, QQQ]
+    symbols: [AAPL, MSFT, NVDA, AMZN, GOOGL, META, AVGO, TSLA, BRK-B, LLY,
+              JPM, V, WMT, XOM, MA, ORCL, COST, JNJ, NFLX, HD]
     benchmarks: ["^GSPC", "^NDX"]
+    hedge_instrument: SPY     # index ETF used for the informational hedge estimate
+    extra_symbols: [SPY, QQQ]
+    # Provider sector name -> reference symbol used for the sector-alignment score.
+    sector_references:
+      Technology: XLK
+      Financial Services: XLF
+      Healthcare: XLV
+      Consumer Cyclical: XLY
+      Consumer Defensive: XLP
+      Energy: XLE
+      Industrials: XLI
+      Communication Services: XLC
+      Basic Materials: XLB
+      Utilities: XLU
+      Real Estate: XLRE
   IN:
     name: India
     timezone: Asia/Kolkata
     currency: INR
     calendar: XBOM            # exchange_calendars has BSE only; used for NSE too (see docs/STATUS.md)
     relative_strength_benchmark: "^NSEI"
-    symbols: [RELIANCE.NS, TCS.NS, INFY.NS, HDFCBANK.NS, ICICIBANK.NS, ITC.NS]
+    symbols: [RELIANCE.NS, TCS.NS, HDFCBANK.NS, ICICIBANK.NS, INFY.NS, BHARTIARTL.NS, SBIN.NS,
+              ITC.NS, HINDUNILVR.NS, LT.NS, BAJFINANCE.NS, HCLTECH.NS, KOTAKBANK.NS,
+              SUNPHARMA.NS, MARUTI.NS, M&M.NS, AXISBANK.NS, ULTRACEMCO.NS, NTPC.NS, TITAN.NS]
     benchmarks: ["^NSEI", "^NSEBANK"]
+    hedge_instrument: NIFTYBEES.NS
+    extra_symbols: [NIFTYBEES.NS]
+    # NSE sector indices on Yahoo. Each is verified at fetch time; failures are reported
+    # and the sector-alignment score is then shown as unavailable for that sector.
+    sector_references:
+      Technology: "^CNXIT"
+      Financial Services: "^NSEBANK"
+      Healthcare: "^CNXPHARMA"
+      Consumer Cyclical: "^CNXAUTO"
+      Consumer Defensive: "^CNXFMCG"
+      Energy: "^CNXENERGY"
+      Industrials: "^CNXINFRA"
+      Basic Materials: "^CNXMETAL"
+      Utilities: "^CNXENERGY"
+      Communication Services: "^CNXMEDIA"
+      Real Estate: "^CNXREALTY"

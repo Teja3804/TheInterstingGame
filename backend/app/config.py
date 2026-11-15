@@ -21,6 +21,19 @@ class MarketConfig(BaseModel):
     relative_strength_benchmark: str
     symbols: list[str]
     benchmarks: list[str]
+    hedge_instrument: str | None = None
+    extra_symbols: list[str] = Field(default_factory=list)
+    sector_references: dict[str, str] = Field(default_factory=dict)
+
+    def every_symbol(self) -> list[str]:
+        """Benchmarks, sector references and extras first, then the watchlist; no repeats."""
+        ordered = [
+            *self.benchmarks,
+            *self.extra_symbols,
+            *self.sector_references.values(),
+            *self.symbols,
+        ]
+        return list(dict.fromkeys(ordered))
 
 
 class DatabaseConfig(BaseModel):
@@ -88,7 +101,89 @@ class ApiConfig(BaseModel):
     max_price_sessions: int = Field(gt=0)
 
 
+class ScoreThresholds(BaseModel):
+    buy_candidate: float
+    watch: float
+    exit_below: float
+
+
+class RejectionConfig(BaseModel):
+    min_sessions: int
+    min_avg_traded_value: dict[str, float]
+    max_atr_pct: float
+
+
+class RegimeConfig(BaseModel):
+    high_volatility_percentile: float
+    volatility_lookback_sessions: int
+
+
+class ScoringConfig(BaseModel):
+    weights: dict[str, float]
+    components: dict[str, dict[str, Any]]
+    thresholds: ScoreThresholds
+    rejections: RejectionConfig
+    regime: RegimeConfig
+
+
+class RiskLimits(BaseModel):
+    risk_per_trade_pct: float = Field(gt=0)
+    max_open_risk_pct: float = Field(gt=0)
+    max_stock_pct: float = Field(gt=0)
+    max_sector_pct: float = Field(gt=0)
+
+
+class PortfolioConfig(BaseModel):
+    equity: float = Field(gt=0)
+    cash: float = Field(ge=0)
+    lot_size: int = Field(ge=1)
+
+
+class PlanConfig(BaseModel):
+    stop_atr_multiple: float = Field(gt=0)
+    target_r_multiple: float = Field(gt=0)
+    max_holding_sessions: int = Field(gt=0)
+    trailing_lookback_sessions: int = Field(gt=0)
+    trailing_atr_multiple: float = Field(gt=0)
+
+
+class CostConfig(BaseModel):
+    cost_bps_per_side: float = Field(ge=0)
+    slippage_bps: float = Field(ge=0)
+
+
+class StressConfig(BaseModel):
+    extra_cost_bps_per_side: float
+    stop_slippage_atr: float
+    gap_r_multiple: float
+
+
+class AnalysisConfig(BaseModel):
+    min_trades_for_probability: int
+    bootstrap_paths: int
+    bootstrap_horizon_trades: int
+    bootstrap_seed: int
+    drawdown_alert_pct: float
+    losing_streak: int
+    stress: StressConfig
+
+
+class HedgeConfig(BaseModel):
+    beta_sessions: int
+
+
+class RiskConfig(BaseModel):
+    limits: RiskLimits
+    portfolio: dict[str, PortfolioConfig]
+    plan: PlanConfig
+    hedge: HedgeConfig
+    costs: dict[str, CostConfig]
+    analysis: AnalysisConfig
+
+
 class Settings(BaseModel):
+    scoring: ScoringConfig
+    risk: RiskConfig
     database: DatabaseConfig
     provider: ProviderConfig
     sessions: SessionsConfig
@@ -101,7 +196,7 @@ class Settings(BaseModel):
     def market_of(self, symbol: str) -> str | None:
         """Market code a configured symbol belongs to, or None if it is not configured."""
         for code, market in self.markets.items():
-            if symbol in market.symbols or symbol in market.benchmarks:
+            if symbol in market.every_symbol():
                 return code
         return None
 
@@ -109,13 +204,12 @@ class Settings(BaseModel):
         return any(symbol in m.benchmarks for m in self.markets.values())
 
     def all_symbols(self) -> list[tuple[str, str]]:
-        """(market, symbol) for every watchlist symbol and benchmark, benchmarks first."""
-        out: list[tuple[str, str]] = []
-        for code, market in self.markets.items():
-            for symbol in [*market.benchmarks, *market.symbols]:
-                if (code, symbol) not in out:
-                    out.append((code, symbol))
-        return out
+        """(market, symbol) for everything that gets fetched, reference symbols first."""
+        return [
+            (code, symbol)
+            for code, market in self.markets.items()
+            for symbol in market.every_symbol()
+        ]
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:
@@ -130,6 +224,8 @@ def load_settings(config_dir: Path | None = None) -> Settings:
     directory = config_dir or Path(os.environ.get("STI_CONFIG_DIR", REPO_ROOT / "config"))
     raw = _read_yaml(directory / "settings.yaml")
     raw["markets"] = _read_yaml(directory / "watchlists.yaml").get("markets", {})
+    raw["scoring"] = _read_yaml(directory / "scoring.yaml")
+    raw["risk"] = _read_yaml(directory / "risk.yaml")
 
     database_url = os.environ.get("STI_DATABASE_URL")
     if database_url:

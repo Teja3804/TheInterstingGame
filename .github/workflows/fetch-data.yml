@@ -1,0 +1,54 @@
+# Fetches real market data on a GitHub runner. The SQLite file is kept as a workflow
+# artifact and also force-pushed, as a single commit, to the separate `market-data`
+# branch so a hosted snapshot can be built from it. That branch holds public price
+# candles only: no positions, no secrets. It is never merged into the code branches.
+# Run it from the Actions tab, or by changing .github/fetch-trigger.
+name: Fetch market data
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/fetch-trigger
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - run: pip install -e "./backend"
+      - name: Fetch every configured symbol
+        working-directory: backend
+        run: |
+          set -o pipefail
+          python -m app.cli 2>fetch-errors.log | tee fetch-report.txt || true
+          echo "---- provider messages (last 40 lines) ----"
+          tail -n 40 fetch-errors.log || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: market-data
+          path: |
+            data/market.db
+            backend/fetch-report.txt
+          if-no-files-found: error
+          retention-days: 7
+      - name: Publish snapshot to the market-data branch
+        run: |
+          mkdir snapshot
+          cp data/market.db backend/fetch-report.txt snapshot/
+          cd snapshot
+          git init -q -b market-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f market.db fetch-report.txt
+          git commit -q -m "Market data snapshot $(date -u +%FT%TZ)"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" market-data

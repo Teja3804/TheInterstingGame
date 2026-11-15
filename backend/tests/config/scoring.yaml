@@ -1,0 +1,54 @@
+# Copy used by unit tests.
+# Opportunity scoring (CONTEXT.md section 7). A score is a ranking from 0 to 100,
+# NOT a probability of profit. The weights are the spec's starting assumptions and are
+# untested until the backtest on the Risk and Strategies screens says otherwise.
+weights:
+  trend: 25
+  relative_strength: 20
+  momentum: 20
+  volume: 15
+  sector: 10
+  reward_risk: 10
+
+components:
+  trend:
+    slope_sessions: 20          # SMA 50 must be higher than this many sessions ago
+  relative_strength:
+    sessions: 20
+    floor_pct: -10.0            # excess return vs benchmark that scores 0
+    cap_pct: 10.0               # excess return that scores 100
+  momentum:
+    return_sessions: 20
+    rsi_best: [50, 70]          # RSI in this band scores 100
+    rsi_ok: [40, 80]            # RSI in this wider band scores 50; outside scores 0
+  volume:
+    average_sessions: 5         # average relative volume over these sessions
+    floor: 0.5                  # scores 0
+    cap: 1.5                    # scores 100
+  sector:
+    sessions: 20
+    floor_pct: -5.0             # sector return minus benchmark return that scores 0
+    cap_pct: 5.0
+  reward_risk:
+    floor: 1.0                  # reward/risk that scores 0
+    cap: 3.0                    # reward/risk that scores 100
+
+thresholds:
+  buy_candidate: 70             # score at or above this, with no rejection, is a buy candidate
+  watch: 55
+  exit_below: 45                # a held stock scoring below this is an exit signal
+
+# Hard rejections run separately from the score.
+rejections:
+  min_sessions: 220             # history needed for SMA 200 and its slope
+  min_avg_traded_value:         # 20-session average of close x volume, in market currency
+    US: 1000000
+    IN: 1000000
+  max_atr_pct: 6.0              # daily ATR as % of price above this is "too volatile"
+
+regime:
+  # Bullish: benchmark above SMA 200 and SMA 50 above SMA 200.
+  # Bearish: benchmark below SMA 200 and SMA 50 below SMA 200. Otherwise Neutral.
+  # Uncertain: not enough history, or volatility above this percentile of its own history.
+  high_volatility_percentile: 90
+  volatility_lookback_sessions: 500

@@ -10,6 +10,7 @@ from app.providers.base import MarketDataProvider
 from app.providers.yfinance_provider import YFinanceProvider
 from app.services.analysis import AnalysisService
 from app.services.ingestion import IngestionService
+from app.services.research import ResearchService
 
 
 def get_settings_dep() -> Settings:
@@ -29,3 +30,9 @@ def get_analysis() -> AnalysisService:
 
 def get_ingestion() -> IngestionService:
     return IngestionService(get_settings(), get_provider(), get_session_factory())
+
+
+@lru_cache(maxsize=1)
+def get_research() -> ResearchService:
+    """One instance per process: it caches the backtests until new data is stored."""
+    return ResearchService(get_settings(), get_analysis())
