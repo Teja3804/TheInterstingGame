@@ -1,0 +1,19 @@
+# Demonstration watchlists. Configurable; these are NOT investment recommendations.
+# Each market has its own calendar, time zone, currency and benchmark.
+markets:
+  US:
+    name: United States
+    timezone: America/New_York
+    currency: USD
+    calendar: XNYS            # exchange_calendars code (NYSE; NASDAQ shares its sessions)
+    relative_strength_benchmark: "^GSPC"
+    symbols: [AAPL, MSFT, NVDA, AMZN, GOOGL, SPY, QQQ]
+    benchmarks: ["^GSPC", "^NDX"]
+  IN:
+    name: India
+    timezone: Asia/Kolkata
+    currency: INR
+    calendar: XBOM            # exchange_calendars has BSE only; used for NSE too (see docs/STATUS.md)
+    relative_strength_benchmark: "^NSEI"
+    symbols: [RELIANCE.NS, TCS.NS, INFY.NS, HDFCBANK.NS, ICICIBANK.NS, ITC.NS]
+    benchmarks: ["^NSEI", "^NSEBANK"]
