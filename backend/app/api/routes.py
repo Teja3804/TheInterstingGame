@@ -9,13 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_analysis, get_ingestion, get_settings_dep
+from app.api.deps import get_analysis, get_ingestion, get_research, get_settings_dep
 from app.config import Settings
 from app.core import freshness
 from app.db import get_db
 from app.services.analysis import AnalysisService, iso_utc, series_to_json
 from app.services.calendars import MarketClock, utc_now
 from app.services.ingestion import IngestionService
+from app.services.research import ResearchService
 
 router = APIRouter(prefix="/api")
 
@@ -265,6 +266,45 @@ def symbol_indicators(
         "series": {name: series_to_json(column.tail(count)) for name, column in series.items()},
         **analysis.levels(data),
     }
+
+
+@router.get("/stocks")
+def stocks(
+    db: Session = Depends(get_db), research: ResearchService = Depends(get_research)
+) -> dict[str, Any]:
+    """Screen 1 list: every watchlist stock with its score and rule-based suggestion."""
+    return research.stocks(db, utc_now())
+
+
+@router.get("/symbols/{symbol}/insight")
+def symbol_insight(
+    symbol: str,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings_dep),
+    research: ResearchService = Depends(get_research),
+) -> dict[str, Any]:
+    """Screen 1 detail: score breakdown, trade plan, holder advice and hedge estimate."""
+    _require_market(settings, symbol)
+    body = research.insight(db, utc_now(), symbol)
+    if body is None:
+        raise HTTPException(404, f"{symbol} is a reference symbol and is not scored")
+    return body
+
+
+@router.get("/risk")
+def risk_analysis(
+    db: Session = Depends(get_db), research: ResearchService = Depends(get_research)
+) -> dict[str, Any]:
+    """Screen 2: BACKTEST risk analysis of the current strategy."""
+    return research.risk(db, utc_now())
+
+
+@router.get("/strategies")
+def strategy_comparison(
+    db: Session = Depends(get_db), research: ResearchService = Depends(get_research)
+) -> dict[str, Any]:
+    """Screen 3: BACKTEST comparison of alternative strategies with the current one."""
+    return research.strategies(db, utc_now())
 
 
 class IngestRequest(BaseModel):
