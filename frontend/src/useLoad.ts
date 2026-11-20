@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useDataVersion } from "./dataVersion";
 
 export interface Loaded<T> {
   data: T | null;
@@ -12,6 +13,7 @@ export function useLoad<T>(load: () => Promise<T>, key: string): Loaded<T> {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
+  const version = useDataVersion();
 
   useEffect(() => {
     let cancelled = false;
@@ -32,11 +34,11 @@ export function useLoad<T>(load: () => Promise<T>, key: string): Loaded<T> {
     return () => {
       cancelled = true;
     };
-    // `load` is recreated each render; `key` says when the request really changes.
+    // `load` is recreated each render; `key` says when the request really changes, and
+    // `version` when newer published data is available. Old data stays shown meanwhile.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, tick]);
+  }, [key, tick, version]);
 
   const reload = useCallback(() => setTick((n) => n + 1), []);
   return { data, error, loading, reload };
 }
-
