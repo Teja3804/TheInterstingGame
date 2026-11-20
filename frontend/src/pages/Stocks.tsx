@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
-import { screens, type StocksMarket } from "../api";
+import { useContext, useEffect, useState } from "react";
+import { screens, type Quote, type StocksMarket } from "../api";
 import type { MarketCode } from "../App";
 import { ActionChip, ScoreMeter, Spark } from "../components/bits";
+import { quoteTimeLabel } from "../components/LatestPrice";
 import { FreshnessBadge } from "../components/FreshnessBadge";
-import { formatDate, formatFraction, formatNumber, signClass } from "../format";
+import { formatDate, formatFraction, formatNumber, formatPercent, signClass } from "../format";
 import { positionStore, type Position } from "../positions";
+import { QuotesContext } from "../quotes";
 import { useLoad } from "../useLoad";
 import { StockPanel } from "./StockPanel";
 
@@ -27,11 +29,40 @@ function RegimeBanner({ market }: { market: StocksMarket }) {
   );
 }
 
+function StockPrice({
+  quote,
+  lastClose,
+  return20,
+  zone,
+}: {
+  quote: Quote | undefined;
+  lastClose: number | null | undefined;
+  return20: number | null | undefined;
+  zone: string;
+}) {
+  const live = quote && quote.price !== null ? quote : undefined;
+  return (
+    <span
+      className="stock-price"
+      title={live ? quoteTimeLabel(live, zone) : "Last completed close"}
+    >
+      <span>{formatNumber(live ? live.price : lastClose)}</span>
+      {live && (
+        <span className={`sub ${signClass(live.change_pct)}`}>
+          {formatPercent(live.change_pct)} {live.kind === "during_session" ? "today" : "day"}
+        </span>
+      )}
+      <span className={`sub ${signClass(return20)}`}>{formatFraction(return20, 1)} in 20</span>
+    </span>
+  );
+}
+
 export function Stocks({ market: code }: { market: MarketCode }) {
   const { data, error } = useLoad(screens.stocks, "stocks");
   const [selected, setSelected] = useState<Record<string, string>>({});
   const [sort, setSort] = useState<SortKey>("score");
   const [positions, setPositions] = useState<Position[]>([]);
+  const quotes = useContext(QuotesContext);
 
   useEffect(() => {
     let stop = () => {};
@@ -62,6 +93,8 @@ export function Stocks({ market: code }: { market: MarketCode }) {
     return (right ?? -Infinity) - (left ?? -Infinity);
   });
   const current = selected[market.code] ?? rows[0]?.symbol;
+  const quoteOf = (symbol: string) =>
+    quotes?.markets.find((m) => m.code === market.code)?.quotes.find((q) => q.symbol === symbol);
   const empty = market.rows.every((row) => row.candle_date === null);
 
   return (
@@ -102,12 +135,12 @@ export function Stocks({ market: code }: { market: MarketCode }) {
                     <span className="sub">{row.name ?? "Name unavailable"}</span>
                   </span>
                   <Spark values={row.spark} />
-                  <span className="stock-price">
-                    <span>{formatNumber(row.values.last_close)}</span>
-                    <span className={`sub ${signClass(row.values.return_20)}`}>
-                      {formatFraction(row.values.return_20, 1)} in 20
-                    </span>
-                  </span>
+                  <StockPrice
+                    quote={quoteOf(row.symbol)}
+                    lastClose={row.values.last_close}
+                    return20={row.values.return_20}
+                    zone={market.timezone}
+                  />
                   <span className="stock-verdict">
                     <ScoreMeter score={row.score} compact />
                     <ActionChip action={row.suggestion.action} />
@@ -119,9 +152,10 @@ export function Stocks({ market: code }: { market: MarketCode }) {
           </ul>
           <p className="footnote">
             {data.note} Buy candidate: score {data.thresholds.buy_candidate} or more with no
-            rejection. Watch: {data.thresholds.watch} or more. Prices in {market.currency}, last
-            completed session {formatDate(market.last_completed_session)}. The lists are a
-            configurable selection of large companies, not recommendations.
+            rejection. Watch: {data.thresholds.watch} or more. Prices in {market.currency}: the
+            latest delayed price where one is published (hover for its time), otherwise the close
+            of the last completed session {formatDate(market.last_completed_session)}. The lists
+            are a configurable selection of large companies, not recommendations.
           </p>
         </section>
         <div className="detail-column">

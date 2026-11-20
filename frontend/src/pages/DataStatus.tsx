@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { api, screens, SNAPSHOT, type IngestResponse } from "../api";
 import { Section } from "../components/bits";
 import { FreshnessBadge } from "../components/FreshnessBadge";
-import { formatDate, formatInstant, localClock } from "../format";
+import { quoteTimeLabel } from "../components/LatestPrice";
+import { formatDate, formatInstant, formatNumber, formatPercent, localClock } from "../format";
+import { QuotesContext } from "../quotes";
 import { useLoad } from "../useLoad";
 
 export function DataStatus() {
@@ -10,6 +12,7 @@ export function DataStatus() {
   const [refreshing, setRefreshing] = useState(false);
   const [result, setResult] = useState<IngestResponse | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const quotes = useContext(QuotesContext);
 
   async function refresh() {
     setRefreshing(true);
@@ -104,7 +107,16 @@ export function DataStatus() {
           <dt>Source</dt>
           <dd>{provider.label}</dd>
           <dt>Data type</dt>
-          <dd>{provider.data_kind}, completed daily candles only</dd>
+          <dd>
+            {provider.data_kind}: completed daily candles for indicators and suggestions, plus a
+            latest delayed price per stock and benchmark
+          </dd>
+          {SNAPSHOT && snapshot && (
+            <>
+              <dt>How it updates</dt>
+              <dd>{snapshot.note}</dd>
+            </>
+          )}
           <dt>Last successful fetch</dt>
           <dd>
             {provider.last_success_utc
@@ -127,6 +139,49 @@ export function DataStatus() {
               .join("")}
           </p>
         )}
+      </Section>
+
+      <Section title="Latest delayed prices">
+        {quotes ? (
+          <div className="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Symbol</th>
+                  <th className="num">Price</th>
+                  <th className="num">Change</th>
+                  <th>Price time</th>
+                  <th>Checks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quotes.markets.flatMap((m) =>
+                  m.quotes.map((q) => (
+                    <tr key={q.symbol}>
+                      <td>
+                        {q.symbol}
+                        {q.is_benchmark && <span className="tag">benchmark</span>}
+                      </td>
+                      <td className="num">
+                        {q.price === null ? "–" : `${formatNumber(q.price)} ${q.currency}`}
+                      </td>
+                      <td className="num">{formatPercent(q.change_pct)}</td>
+                      <td>
+                        {q.price === null ? q.unavailable_reason : quoteTimeLabel(q, m.timezone)}
+                      </td>
+                      <td className="error-text">
+                        {[...(q.warnings ?? []), ...(q.last_error ? [q.last_error] : [])].join("; ")}
+                      </td>
+                    </tr>
+                  )),
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="notice">Latest prices are not available.</p>
+        )}
+        {quotes && <p className="footnote">{quotes.note}</p>}
       </Section>
 
       <Section title="Stored data by symbol">

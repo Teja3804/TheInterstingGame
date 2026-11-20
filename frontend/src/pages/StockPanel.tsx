@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { screens, type Insight, type SymbolBundle } from "../api";
 import { ActionChip, BacktestTag, pct, r, ScoreMeter, Section } from "../components/bits";
+import { LatestPrice } from "../components/LatestPrice";
 import { Price } from "../components/Price";
 import { PriceChart, type Overlays } from "../components/PriceChart";
 import {
@@ -14,6 +15,7 @@ import {
 } from "../format";
 import { viewPosition } from "../positionMath";
 import { newId, positionStore, type Position, type StoreKind } from "../positions";
+import { useQuote } from "../quotes";
 import { useLoad } from "../useLoad";
 
 const STORE_TEXT: Record<StoreKind, string> = {
@@ -385,6 +387,7 @@ export function StockPanel({
   onPick: (symbol: string) => void;
 }) {
   const { data, error } = useLoad(() => screens.symbol(symbol), `symbol:${symbol}`);
+  const quote = useQuote(symbol);
   const [overlays, setOverlays] = useState<Overlays>({
     sma: true,
     ema: false,
@@ -423,7 +426,10 @@ export function StockPanel({
               {indicators.profile?.sector ? `, ${indicators.profile.sector}` : ""}
             </p>
           </div>
-          <Price value={indicators.snapshot.last_close} from={indicators} size="large" />
+          <div className="price-stack">
+            <LatestPrice quote={quote} zone={zone} size="large" />
+            <Price value={indicators.snapshot.last_close} from={indicators} />
+          </div>
         </div>
         <div className="verdict">
           <ActionChip action={insight.suggestion.action} large />
