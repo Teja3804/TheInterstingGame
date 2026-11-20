@@ -23,6 +23,16 @@ data_quality:
   suspicious_move_pct: 25.0   # abs single-day move in raw close with no recorded split
   missing_session_lookback_days: 730
 
+quotes:
+  # Latest delayed price per watchlist symbol and benchmark (Yahoo regularMarketPrice).
+  max_future_seconds: 300       # a quote time further ahead than this is rejected
+  close_match_tolerance_pct: 0.5   # after a close, the quote must match the stored close this closely
+
+site:
+  # The website on GitHub Pages is rebuilt by .github/workflows/publish-site.yml.
+  update_every_minutes: 15      # must match that workflow's cron while a market is open
+  stale_after_minutes: 60       # the site warns when its last update is older than this during a session
+
 indicators:
   sma_windows: [20, 50, 200]
   ema_windows: [9, 21]

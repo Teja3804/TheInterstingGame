@@ -64,6 +64,18 @@ class DataQualityConfig(BaseModel):
     missing_session_lookback_days: int = Field(gt=0)
 
 
+class QuotesConfig(BaseModel):
+    max_future_seconds: float = Field(ge=0)
+    close_match_tolerance_pct: float = Field(gt=0)
+
+
+class SiteConfig(BaseModel):
+    """The published website, rebuilt by the scheduled GitHub workflow."""
+
+    update_every_minutes: int = Field(gt=0)
+    stale_after_minutes: int = Field(gt=0)
+
+
 class MacdConfig(BaseModel):
     fast: int
     slow: int
@@ -188,6 +200,8 @@ class Settings(BaseModel):
     provider: ProviderConfig
     sessions: SessionsConfig
     data_quality: DataQualityConfig
+    quotes: QuotesConfig
+    site: SiteConfig
     indicators: IndicatorConfig
     api: ApiConfig
     markets: dict[str, MarketConfig]

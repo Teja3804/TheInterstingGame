@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from app.export import export, safe_name
 from app.main import app
 from app.services.analysis import AnalysisService
 from app.services.ingestion import IngestionService
+from app.services.quotes import QuoteService
 from app.services.research import ResearchService
 from tests.helpers import FakeProvider, bars_on_sessions, calendar_for, utc
 
@@ -187,10 +189,18 @@ def test_export_writes_one_file_per_stock(
     monkeypatch.setattr(module, "utc_now", lambda: SATURDAY)
 
     sessions = list(overrides[get_db]())
-    monkeypatch.setattr(module, "get_session_factory", lambda: lambda: _Ctx(sessions[0]))
-    count = export(tmp_path / "snap", 60)
-    assert count == 4 + 11
+    factory = lambda: _Ctx(sessions[0])  # noqa: E731
+    monkeypatch.setattr(module, "get_session_factory", lambda: factory)
+    quotes = QuoteService(settings, FakeProvider(), factory)  # type: ignore[arg-type]
+    monkeypatch.setattr(module, "get_quotes", lambda: quotes)
+    count = export(tmp_path / "snap", 60, scheduled=True)
+    assert count == 5 + 11
     assert (tmp_path / "snap" / "symbols" / "AAPL.json").exists()
+    status = json.loads((tmp_path / "snap" / "status.json").read_text())
+    assert status["snapshot"]["scheduled"] is True
+    assert status["snapshot"]["update_every_minutes"] == settings.site.update_every_minutes
+    body = json.loads((tmp_path / "snap" / "quotes.json").read_text())
+    assert body["markets"][0]["quotes"][0]["unavailable_reason"] == "no quote fetched yet"
     assert safe_name("^GSPC") == "_GSPC" and safe_name("M&M.NS") == "M_M.NS"
 
 
