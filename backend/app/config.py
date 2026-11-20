@@ -73,6 +73,7 @@ class SiteConfig(BaseModel):
     """The published website, rebuilt by the scheduled GitHub workflow."""
 
     update_every_minutes: int = Field(gt=0)
+    idle_max_minutes: int = Field(gt=0, le=340)  # a GitHub job may run at most 6 hours
     stale_after_minutes: int = Field(gt=0)
 
 
