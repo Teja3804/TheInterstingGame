@@ -1272,3 +1272,32 @@ td.wrap {
   min-width: 0;
   overflow-x: auto;
 }
+
+/* ---- Latest delayed prices and site updates --------------------------------------- */
+
+.price-warning {
+  color: var(--warn-ink);
+  font-size: 0.8rem;
+}
+
+.price-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+}
+
+.price-stack .price-normal .price-value {
+  font-size: 0.95rem;
+}
+
+.standing-note .stale {
+  color: #ffd27a;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .price-stack {
+    align-items: flex-start;
+  }
+}

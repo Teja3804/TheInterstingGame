@@ -10,18 +10,48 @@ equities. It has three screens:
 3. **Strategies**: alternative strategies compared with the current one on the same data.
 
 - **No live trading.** There are no broker connections and no order placement.
-- Data comes from Yahoo Finance through `yfinance`: unofficial, free, **delayed / end-of-day**.
-- **Scheduled monitoring is not active.** Data changes only when you run a refresh.
+- Data comes from Yahoo Finance through `yfinance`: unofficial, free, **delayed** (no API key).
+  Indicators and suggestions use completed daily candles; the screens also show the latest
+  delayed price with its own time.
+- **Runs in the browser.** A scheduled GitHub workflow fetches prices about every 15 minutes
+  while the US or Indian market is open and republishes the site on GitHub Pages. The site
+  shows its last update time and warns when updates are late. Nothing runs on your computer.
 - Every performance number is a **BACKTEST**. A score is a ranking, not a probability.
 - Not financial advice. The stock lists are a configurable selection, not recommendations.
 
 Current progress and known limitations: [`docs/STATUS.md`](docs/STATUS.md).
 
-## Requirements
+## Use it in the browser (GitHub Pages)
+
+`.github/workflows/publish-site.yml` does everything on GitHub's servers:
+
+1. Restores the SQLite file from the `market-data` branch.
+2. Fetches new completed daily candles and the latest delayed price for every watchlist
+   stock and benchmark (`python -m app.cli`).
+3. Exports every screen as JSON (`python -m app.export ... --scheduled`), builds the static
+   dashboard (`VITE_STATIC=1`) and deploys it to GitHub Pages.
+4. Saves the database back to `market-data` (public price data only: no positions, no
+   secrets), with `fetch-report.txt` and `quotes.json` from that run.
+
+It runs every 15 minutes during each market's session (see the cron lines in the workflow),
+once a day every day, on every push to the code, and from the Actions tab ("Run workflow").
+Only runs on the default branch deploy the site.
+
+One-time setup on github.com:
+
+1. Settings → General → Danger Zone → **Change visibility** → Public. (GitHub Pages and
+   unlimited Actions minutes are free only for public repositories.)
+2. Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+3. Merge the branch with these changes into `main`. The first run deploys the site to
+   `https://<owner>.github.io/<repository>/`.
+
+On the site, positions you record are kept in that browser only.
+
+## Requirements (optional local run)
 
 Python 3.11+, Node 20+, and internet access to Yahoo Finance for refreshes. No API keys.
 
-## Run locally
+## Run locally (optional)
 
 Backend (terminal 1):
 
@@ -81,7 +111,7 @@ Everything tunable is in `config/`:
 | File | Contents |
 |---|---|
 | `watchlists.yaml` | Markets, time zones, currencies, calendars, symbols and benchmarks |
-| `settings.yaml` | Provider pacing and retries, cache times, close buffer, data-quality thresholds, indicator parameters |
+| `settings.yaml` | Provider pacing and retries, cache times, close buffer, data-quality thresholds, quote checks, site update timing, indicator parameters |
 | `scoring.yaml` | Score weights, component scales, buy / watch / exit thresholds, rejection rules, regime rules |
 | `risk.yaml` | Risk limits, example portfolio sizes, stop / target / holding rules, cost estimates, analysis settings |
 
@@ -101,12 +131,21 @@ Optional environment variables are listed in `.env.example` (`STI_DATABASE_URL`,
 | `GET /api/symbols/{symbol}/insight` | Screen 1 detail: score breakdown, plan, holder advice, hedge estimate |
 | `GET /api/risk` | Screen 2: BACKTEST risk analysis of the current strategy |
 | `GET /api/strategies` | Screen 3: BACKTEST strategy comparison |
+| `GET /api/quotes` | Latest stored delayed price per watchlist stock and benchmark |
+| `POST /api/quotes/refresh` | Fetch latest prices now (`{"markets": ["US"]}`, optional) |
 | `POST /api/ingest` | Manual refresh (`{"symbols": [...], "force": false}`, both optional) |
 
 ## How prices are handled
 
 - Only **completed** daily candles are stored. Today's bar is dropped until the session's close
   plus 30 minutes has passed.
+- The **latest price** is Yahoo's `regularMarketPrice` with its `regularMarketTime`, stored
+  per symbol and shown with that time in the market's zone ("Delayed price" during a session,
+  "Closing price" after it). It is rejected if not a positive number or timed in the future,
+  and flagged when its currency is unexpected, it moved more than `suspicious_move_pct`, or,
+  after a close, it differs from the stored close for that session by more than
+  `quotes.close_match_tolerance_pct`. A failed refresh keeps the previous quote and says so.
+  Indicators, scores and suggestions never use it.
 - `close` is split-adjusted as Yahoo reports it; `adj_close` is also dividend-adjusted. Both are
   stored, with splits and dividends in their own table. **Indicators and the chart use adjusted
   prices**; the "last close" figure is `close`.
@@ -117,13 +156,9 @@ Optional environment variables are listed in `.env.example` (`STI_DATABASE_URL`,
 - Fresh = the latest stored candle is the last completed session on that market's calendar.
   Stale = a newer session has completed. Weekends and holidays never count as stale.
 
-## Hosted snapshot and fetching on GitHub
+## One-off snapshot
 
-`.github/workflows/fetch-data.yml` fetches every configured symbol on a GitHub runner (run it
-from the Actions tab or change `.github/fetch-trigger`). It keeps the SQLite file as a workflow
-artifact and force-pushes it to the separate `market-data` branch (public price candles only).
-
-To build a read-only snapshot of the screens from a database:
+To build a read-only snapshot of the screens from a local database:
 
 ```bash
 cd backend && python -m app.export ../snapshot-data          # JSON for every screen
@@ -136,7 +171,7 @@ cp -r ../snapshot-data ../site/data                           # then host the `s
 See [`docs/STATUS.md`](docs/STATUS.md) for the full list. The main ones: all results are
 backtests on today's large companies (survivorship bias); earnings dates and news are not
 available, so event risk is not checked; costs are estimates; yfinance can break without notice;
-no scheduler, alerts or paper trading yet.
+GitHub may start scheduled runs late; no alerts or paper trading yet.
 
 ## Layout
 

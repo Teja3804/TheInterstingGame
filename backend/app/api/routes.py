@@ -9,13 +9,20 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_analysis, get_ingestion, get_research, get_settings_dep
+from app.api.deps import (
+    get_analysis,
+    get_ingestion,
+    get_quotes,
+    get_research,
+    get_settings_dep,
+)
 from app.config import Settings
 from app.core import freshness
 from app.db import get_db
 from app.services.analysis import AnalysisService, iso_utc, series_to_json
 from app.services.calendars import MarketClock, utc_now
 from app.services.ingestion import IngestionService
+from app.services.quotes import QuoteService
 from app.services.research import ResearchService
 
 router = APIRouter(prefix="/api")
@@ -305,6 +312,42 @@ def strategy_comparison(
 ) -> dict[str, Any]:
     """Screen 3: BACKTEST comparison of alternative strategies with the current one."""
     return research.strategies(db, utc_now())
+
+
+@router.get("/quotes")
+def latest_quotes(
+    db: Session = Depends(get_db), quotes: QuoteService = Depends(get_quotes)
+) -> dict[str, Any]:
+    """Latest stored delayed price for every watchlist stock and benchmark."""
+    return quotes.payload(db, utc_now())
+
+
+class QuotesRequest(BaseModel):
+    markets: list[str] | None = None
+
+
+@router.post("/quotes/refresh")
+def refresh_quotes(
+    request: QuotesRequest | None = None,
+    settings: Settings = Depends(get_settings_dep),
+    quotes: QuoteService = Depends(get_quotes),
+) -> dict[str, Any]:
+    """Fetch the latest delayed price for every watchlist stock and benchmark now."""
+    request = request or QuotesRequest()
+    if request.markets:
+        unknown = [m for m in request.markets if m not in settings.markets]
+        if unknown:
+            raise HTTPException(404, f"unknown markets: {', '.join(unknown)}")
+    started = utc_now()
+    run = quotes.refresh(request.markets)
+    return {
+        "started_utc": iso_utc(started),
+        "finished_utc": iso_utc(utc_now()),
+        "fetched": run.fetched,
+        "failed": run.failed,
+        "errors": run.errors,
+        "warnings": run.warnings,
+    }
 
 
 class IngestRequest(BaseModel):

@@ -94,3 +94,27 @@ class DataQualityIssue(Base):
     kind: Mapped[str] = mapped_column(String(32))
     detail: Mapped[str] = mapped_column(Text)
     detected_at: Mapped[dt.datetime] = mapped_column(DateTime)
+
+
+class LatestQuote(Base):
+    """Latest delayed price per symbol. Replaced in place on every quote refresh.
+
+    `price` and `market_time` stay at the last good quote when a refresh fails; the failure
+    is kept in `last_error` with `last_error_at`.
+    """
+
+    __tablename__ = "latest_quotes"
+    __table_args__ = (UniqueConstraint("symbol", "source", name="uq_latest_quote"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    symbol: Mapped[str] = mapped_column(String(32), index=True)
+    market: Mapped[str] = mapped_column(String(8))
+    source: Mapped[str] = mapped_column(String(32))
+    price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    previous_close: Mapped[float | None] = mapped_column(Float, nullable=True)
+    currency: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    market_time: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    fetched_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    warnings: Mapped[str | None] = mapped_column(Text, nullable=True)  # one per line
+    last_error_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)

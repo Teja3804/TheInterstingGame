@@ -1,5 +1,6 @@
 // Types and fetch helpers for the backend API. The frontend only displays what the
 // backend sends: no financial calculations happen here.
+import { cacheKey } from "./dataVersion";
 
 export type Freshness = "fresh" | "stale" | "missing" | "unknown";
 
@@ -157,6 +158,47 @@ export interface IndicatorsResponse extends Provenance {
   resistance: Level[];
 }
 
+export interface Quote {
+  symbol: string;
+  is_benchmark: boolean;
+  currency: string;
+  price: number | null;
+  unavailable_reason?: string;
+  provider_currency?: string | null;
+  previous_close?: number | null;
+  change_pct?: number | null;
+  kind?: "during_session" | "after_close";
+  market_time_utc?: string;
+  market_time_local?: string;
+  fetched_at_utc?: string | null;
+  warnings?: string[];
+  last_error?: string | null;
+  last_error_utc?: string | null;
+}
+
+export interface QuotesResponse {
+  generated_at_utc: string;
+  source: string;
+  source_label: string;
+  note: string;
+  markets: {
+    code: string;
+    name: string;
+    currency: string;
+    timezone: string;
+    is_open: boolean;
+    quotes: Quote[];
+  }[];
+}
+
+export interface SiteSnapshot {
+  exported_at_utc: string;
+  note: string;
+  scheduled?: boolean;
+  update_every_minutes?: number | null;
+  stale_after_minutes?: number | null;
+}
+
 export interface IngestResponse {
   fetched: number;
   cached: number;
@@ -164,8 +206,19 @@ export interface IngestResponse {
   results: { symbol: string; outcome: string; error: string | null }[];
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, init);
+/** Snapshot files are relative paths; add the data version so no cache serves old files. */
+function withVersion(path: string, fresh: boolean): string {
+  if (!path.startsWith("./")) return path;
+  const key = fresh ? String(Date.now()) : cacheKey();
+  return key ? `${path}?v=${encodeURIComponent(key)}` : path;
+}
+
+async function request<T>(path: string, init?: RequestInit, fresh = false): Promise<T> {
+  const snapshotFile = path.startsWith("./");
+  const response = await fetch(
+    withVersion(path, fresh),
+    snapshotFile ? { ...init, cache: "no-store" } : init,
+  );
   if (!response.ok) {
     let detail = response.statusText;
     try {
@@ -462,11 +515,14 @@ export const SNAPSHOT = import.meta.env.VITE_STATIC === "1";
 const safeName = (symbol: string) => symbol.replace(/[^A-Za-z0-9.-]/g, "_");
 const SESSIONS = 260;
 
+export type StatusResponse = SourcesStatus & { snapshot?: SiteSnapshot };
+
 export const screens = {
-  status: () =>
-    request<SourcesStatus & { snapshot?: { exported_at_utc: string; note: string } }>(
-      SNAPSHOT ? "./data/status.json" : "/api/sources/status",
-    ),
+  status: () => request<StatusResponse>(SNAPSHOT ? "./data/status.json" : "/api/sources/status"),
+  /** Always asks the server: used to notice that a newer build has been published. */
+  statusFresh: () =>
+    request<StatusResponse>(SNAPSHOT ? "./data/status.json" : "/api/sources/status", {}, true),
+  quotes: () => request<QuotesResponse>(SNAPSHOT ? "./data/quotes.json" : "/api/quotes"),
   stocks: () => request<StocksResponse>(SNAPSHOT ? "./data/stocks.json" : "/api/stocks"),
   risk: () => request<RiskResponse>(SNAPSHOT ? "./data/risk.json" : "/api/risk"),
   strategies: () =>

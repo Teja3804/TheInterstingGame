@@ -16,8 +16,10 @@ from app.config import Settings
 from app.core import indicators as ind
 from app.db import Base, get_db, make_engine
 from app.main import app
+from app.providers.base import RawQuote
 from app.services.analysis import AnalysisService
 from app.services.ingestion import IngestionService
+from app.services.quotes import QuoteService
 from tests.helpers import FakeProvider, bars_on_sessions, calendar_for, utc
 
 SATURDAY = utc(2024, 3, 9, 12, 0)
@@ -66,6 +68,9 @@ def api(
     app.dependency_overrides[deps.get_settings_dep] = lambda: settings
     app.dependency_overrides[deps.get_analysis] = lambda: AnalysisService(settings, source="fake")
     app.dependency_overrides[deps.get_ingestion] = lambda: IngestionService(
+        settings, provider, factory, now=lambda: clock[0]
+    )
+    app.dependency_overrides[deps.get_quotes] = lambda: QuoteService(
         settings, provider, factory, now=lambda: clock[0]
     )
     yield Api(TestClient(app), provider, clock)
@@ -206,3 +211,19 @@ def test_caret_symbols_and_unknown_symbols(api: Api) -> None:
     assert api.client.get("/api/symbols/NOPE/prices").status_code == 404
     assert api.client.get("/api/symbols/NOPE/indicators").status_code == 404
     assert api.client.post("/api/ingest", json={"symbols": ["NOPE"]}).status_code == 404
+
+
+def test_quotes_refresh_then_read(api: Api) -> None:
+    when = utc(2024, 3, 8, 21, 0)
+    api.provider.quotes["AAPL"] = RawQuote("AAPL", 101.5, when, "USD", [(LAST, 101.5)])
+    result = api.client.post("/api/quotes/refresh", json={"markets": ["US"]}).json()
+    assert result["fetched"] == 1 and result["failed"] == 6  # the other symbols have no quote
+    assert "no quote in the fake provider" in result["errors"]["MSFT"]
+
+    body = api.client.get("/api/quotes").json()
+    us = next(m for m in body["markets"] if m["code"] == "US")
+    aapl = next(q for q in us["quotes"] if q["symbol"] == "AAPL")
+    assert aapl["price"] == 101.5 and aapl["kind"] == "after_close"
+    assert aapl["market_time_local"] == "2024-03-08T16:00:00-05:00"
+    assert "delayed" in body["note"]
+    assert api.client.post("/api/quotes/refresh", json={"markets": ["XX"]}).status_code == 404

@@ -10,6 +10,7 @@ from app.providers.base import MarketDataProvider
 from app.providers.yfinance_provider import YFinanceProvider
 from app.services.analysis import AnalysisService
 from app.services.ingestion import IngestionService
+from app.services.quotes import QuoteService
 from app.services.research import ResearchService
 
 
@@ -30,6 +31,10 @@ def get_analysis() -> AnalysisService:
 
 def get_ingestion() -> IngestionService:
     return IngestionService(get_settings(), get_provider(), get_session_factory())
+
+
+def get_quotes() -> QuoteService:
+    return QuoteService(get_settings(), get_provider(), get_session_factory())
 
 
 @lru_cache(maxsize=1)

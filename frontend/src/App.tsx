@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { screens, SNAPSHOT } from "./api";
+import { screens, SNAPSHOT, type StatusResponse } from "./api";
 import { formatInstant } from "./format";
 import { DataStatus } from "./pages/DataStatus";
 import { Risk } from "./pages/Risk";
 import { Stocks } from "./pages/Stocks";
 import { Strategies } from "./pages/Strategies";
+import { updateIsLate } from "./siteStatus";
 import { useLoad } from "./useLoad";
 
 const VIEWS = [
@@ -26,6 +27,33 @@ function viewFromHash(): View {
   return VIEWS.some(([key]) => key === name) ? (name as View) : "stocks";
 }
 
+function SiteNote({ status, zone }: { status: StatusResponse | null; zone: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  if (!SNAPSHOT) {
+    return <>Scheduled monitoring is not active: data changes only when you refresh it. </>;
+  }
+  const snap = status?.snapshot;
+  const when = snap ? formatInstant(snap.exported_at_utc, zone) : null;
+  if (!snap?.scheduled) {
+    return <>Read-only snapshot{when ? ` taken ${when}` : ""}. It does not update by itself. </>;
+  }
+  return (
+    <>
+      Updated by a scheduled GitHub job about every {snap.update_every_minutes} minutes while a
+      market is open. Last update: {when}.{" "}
+      {updateIsLate(status, now) && (
+        <span className="stale">
+          That is later than the schedule allows: updates may have stopped.{" "}
+        </span>
+      )}
+    </>
+  );
+}
+
 export function App() {
   const [view, setView] = useState<View>(viewFromHash);
   const [market, setMarket] = useState<MarketCode>("US");
@@ -41,7 +69,6 @@ export function App() {
     window.location.hash = next;
     setView(next);
   };
-  const exported = status.data?.snapshot?.exported_at_utc;
   const zone = market === "US" ? "America/New_York" : "Asia/Kolkata";
 
   return (
@@ -77,11 +104,10 @@ export function App() {
           </div>
         </div>
         <p className="standing-note">
-          {SNAPSHOT
-            ? `Read-only snapshot${exported ? ` taken ${formatInstant(exported, zone)}` : ""}. It does not update by itself. `
-            : "Scheduled monitoring is not active: data changes only when you refresh it. "}
-          Prices are delayed end-of-day data from Yahoo Finance (yfinance, unofficial). Decision
-          support only, not financial advice. This tool never places orders.
+          <SiteNote status={status.data} zone={zone} />
+          Prices are delayed data from Yahoo Finance (yfinance, unofficial); indicators and
+          suggestions use completed daily candles only. Decision support only, not financial
+          advice. This tool never places orders.
         </p>
       </header>
       <main key={view} className="view">

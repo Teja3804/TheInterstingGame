@@ -45,6 +45,21 @@ class Profile:
     quote_type: str | None
 
 
+@dataclass(frozen=True)
+class RawQuote:
+    """Latest price exactly as a provider returned it (not yet validated).
+
+    `market_time` is the provider's time for that price, timezone-aware. `daily_closes` are
+    the provider's recent daily closes (session date, close), used to find the previous close.
+    """
+
+    symbol: str
+    price: float
+    market_time: dt.datetime
+    currency: str | None
+    daily_closes: list[tuple[dt.date, float]] = field(default_factory=list)
+
+
 class ProviderError(Exception):
     """The provider failed after all retries, or returned an unusable response."""
 
@@ -72,3 +87,7 @@ class MarketDataProvider(ABC):
     @abstractmethod
     def fetch_profile(self, symbol: str) -> Profile:
         """Name, sector, industry, exchange and currency. Unknown fields are None."""
+
+    @abstractmethod
+    def fetch_quote(self, symbol: str) -> RawQuote:
+        """Latest (delayed) price with the provider's own time for it."""

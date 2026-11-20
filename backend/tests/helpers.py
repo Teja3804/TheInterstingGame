@@ -15,6 +15,7 @@ from app.providers.base import (
     ProviderError,
     RawAction,
     RawBar,
+    RawQuote,
 )
 from app.services.calendars import MarketCalendar
 
@@ -56,6 +57,8 @@ class FakeProvider(MarketDataProvider):
     failing: dict[str, ProviderError] = field(default_factory=dict)
     calls: list[tuple[str, dt.date, dt.date]] = field(default_factory=list)
     profile_calls: list[str] = field(default_factory=list)
+    quotes: dict[str, RawQuote | ProviderError] = field(default_factory=dict)
+    quote_calls: list[str] = field(default_factory=list)
     name: str = "fake"
 
     def fetch_daily_history(self, symbol: str, start: dt.date, end: dt.date) -> PriceHistory:
@@ -72,3 +75,12 @@ class FakeProvider(MarketDataProvider):
         return Profile(
             symbol, f"Synthetic {symbol}", "Test Sector", "Test Industry", "TEST", None, None
         )
+
+    def fetch_quote(self, symbol: str) -> RawQuote:
+        self.quote_calls.append(symbol)
+        outcome = self.quotes.get(symbol)
+        if outcome is None:
+            raise ProviderError(f"{symbol}: no quote in the fake provider")
+        if isinstance(outcome, ProviderError):
+            raise outcome
+        return outcome
