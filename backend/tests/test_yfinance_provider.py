@@ -212,3 +212,53 @@ def test_profile_fields_and_missing_values(settings: Settings) -> None:
         "USD",
     )
     assert profile.industry is None  # blank is unknown, not an empty guess
+
+
+class QuoteTicker(FakeTicker):
+    def __init__(self, outcomes: list[Any], meta: Any) -> None:
+        super().__init__(outcomes)
+        self.meta = meta
+
+    def get_history_metadata(self) -> Any:
+        return self.meta
+
+
+def test_quote_reads_price_time_currency_and_daily_closes(
+    settings: Settings, hand: pd.DataFrame
+) -> None:
+    when = int(dt.datetime(2024, 1, 9, 20, 59, tzinfo=dt.UTC).timestamp())
+    meta = {"regularMarketPrice": 12.34, "regularMarketTime": when, "currency": "USD"}
+    ticker = QuoteTicker([frame(hand)], meta)
+    provider, _ = make(settings, ticker)
+    quote = provider.fetch_quote("TEST")
+
+    assert quote.price == 12.34 and quote.currency == "USD"
+    assert quote.market_time == dt.datetime(2024, 1, 9, 20, 59, tzinfo=dt.UTC)
+    assert quote.daily_closes[-1] == (hand["date"].iloc[-1], 12.0)
+    assert ticker.history_kwargs[0]["period"] == "5d"
+    assert ticker.history_kwargs[0]["interval"] == "1d"
+
+
+def test_quote_accepts_a_formatted_timestamp(settings: Settings, hand: pd.DataFrame) -> None:
+    stamp = pd.Timestamp("2024-01-09 15:59", tz="America/New_York")
+    ticker = QuoteTicker([frame(hand)], {"regularMarketPrice": 5, "regularMarketTime": stamp})
+    quote = make(settings, ticker)[0].fetch_quote("TEST")
+    assert quote.market_time == dt.datetime(2024, 1, 9, 20, 59, tzinfo=dt.UTC)
+    assert quote.currency is None
+
+
+@pytest.mark.parametrize(
+    "meta",
+    [
+        {"regularMarketTime": 1704833940},
+        {"regularMarketPrice": "12", "regularMarketTime": 1704833940},
+        {"regularMarketPrice": 12.0},
+        {"regularMarketPrice": 12.0, "regularMarketTime": True},
+    ],
+)
+def test_quote_without_price_or_time_is_an_error(
+    settings: Settings, hand: pd.DataFrame, meta: dict[str, Any]
+) -> None:
+    provider, _ = make(settings, QuoteTicker([frame(hand)], meta))
+    with pytest.raises(ProviderError):
+        provider.fetch_quote("TEST")

@@ -20,6 +20,7 @@ from app.providers.base import (
     RateLimitError,
     RawAction,
     RawBar,
+    RawQuote,
     SymbolNotFoundError,
 )
 
@@ -49,6 +50,19 @@ def _classify(exc: Exception) -> type[ProviderError]:
 def _text(value: Any) -> str | None:
     if isinstance(value, str) and value.strip():
         return value.strip()
+    return None
+
+
+def _quote_time(value: Any) -> dt.datetime | None:
+    """regularMarketTime arrives as epoch seconds, or as a Timestamp once yfinance formats it."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)) and math.isfinite(value) and value > 0:
+        return dt.datetime.fromtimestamp(float(value), tz=dt.UTC)
+    if isinstance(value, pd.Timestamp) and value.tzinfo is not None:
+        return value.to_pydatetime().astimezone(dt.UTC)
+    if isinstance(value, dt.datetime) and value.tzinfo is not None:
+        return value.astimezone(dt.UTC)
     return None
 
 
@@ -156,7 +170,47 @@ class YFinanceProvider(MarketDataProvider):
             quote_type=_text(info.get("quoteType")),
         )
 
+    def fetch_quote(self, symbol: str) -> RawQuote:
+        def call() -> tuple[pd.DataFrame, dict[str, Any]]:
+            ticker = self._ticker_factory(symbol)
+            # One chart request returns recent daily candles plus the quote metadata
+            # (regularMarketPrice and regularMarketTime).
+            frame = ticker.history(
+                period="5d", interval="1d", auto_adjust=False, actions=False, raise_errors=True
+            )
+            if not isinstance(frame, pd.DataFrame):
+                raise ProviderError(f"{symbol}: yfinance returned {type(frame).__name__}")
+            meta = ticker.get_history_metadata()
+            if not isinstance(meta, dict):
+                raise ProviderError(f"{symbol}: yfinance returned no quote metadata")
+            return frame, meta
+
+        frame, meta = self._with_retry(symbol, "quote", call)
+        return self._parse_quote(symbol, frame, meta)
+
     # -- parsing -----------------------------------------------------------------------
+
+    @staticmethod
+    def _parse_quote(symbol: str, frame: pd.DataFrame, meta: dict[str, Any]) -> RawQuote:
+        price = meta.get("regularMarketPrice")
+        if not isinstance(price, (int, float)) or isinstance(price, bool):
+            raise ProviderError(f"{symbol}: yfinance quote has no regularMarketPrice")
+        market_time = _quote_time(meta.get("regularMarketTime"))
+        if market_time is None:
+            raise ProviderError(f"{symbol}: yfinance quote has no regularMarketTime")
+        closes: list[tuple[dt.date, float]] = []
+        if "Close" in frame.columns and isinstance(frame.index, pd.DatetimeIndex):
+            for stamp, value in frame["Close"].items():
+                number = float(value)
+                if math.isfinite(number):
+                    closes.append((pd.Timestamp(stamp).date(), number))  # type: ignore[arg-type]
+        return RawQuote(
+            symbol=symbol,
+            price=float(price),
+            market_time=market_time,
+            currency=_text(meta.get("currency")),
+            daily_closes=closes,
+        )
 
     @staticmethod
     def _parse_history(symbol: str, frame: pd.DataFrame) -> PriceHistory:
