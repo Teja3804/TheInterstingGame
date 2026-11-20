@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Iterator, Mapping
 from typing import Any
 
 import pandas as pd
@@ -261,4 +262,37 @@ def test_quote_without_price_or_time_is_an_error(
 ) -> None:
     provider, _ = make(settings, QuoteTicker([frame(hand)], meta))
     with pytest.raises(ProviderError):
+        provider.fetch_quote("TEST")
+
+
+class LazyMeta(Mapping[str, Any]):
+    """Like yfinance 1.x HistoryMetadata: a Mapping whose lazy key costs another request."""
+
+    def __init__(self, data: dict[str, Any]) -> None:
+        self._data = data
+
+    def __getitem__(self, key: str) -> Any:
+        if key == "tradingPeriods":
+            raise AssertionError("tradingPeriods would trigger an intraday request")
+        return self._data[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter([*self._data, "tradingPeriods"])
+
+    def __len__(self) -> int:
+        return len(self._data) + 1
+
+
+def test_quote_reads_a_lazy_metadata_mapping_without_touching_lazy_keys(
+    settings: Settings, hand: pd.DataFrame
+) -> None:
+    meta = LazyMeta({"regularMarketPrice": 7.5, "regularMarketTime": 1704833940})
+    quote = make(settings, QuoteTicker([frame(hand)], meta))[0].fetch_quote("TEST")
+    assert quote.price == 7.5 and quote.currency is None
+    assert quote.market_time == dt.datetime(2024, 1, 9, 20, 59, tzinfo=dt.UTC)
+
+
+def test_quote_with_unusable_metadata_is_an_error(settings: Settings, hand: pd.DataFrame) -> None:
+    provider, _ = make(settings, QuoteTicker([frame(hand)], None))
+    with pytest.raises(ProviderError, match="no quote metadata"):
         provider.fetch_quote("TEST")

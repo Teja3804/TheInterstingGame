@@ -6,7 +6,7 @@ import datetime as dt
 import logging
 import math
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any, TypeVar
 
 import pandas as pd
@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 REQUIRED_COLUMNS = ("Open", "High", "Low", "Close", "Adj Close", "Volume")
+QUOTE_KEYS = ("regularMarketPrice", "regularMarketTime", "currency")
 
 
 def _default_ticker_factory(symbol: str) -> Any:
@@ -181,9 +182,11 @@ class YFinanceProvider(MarketDataProvider):
             if not isinstance(frame, pd.DataFrame):
                 raise ProviderError(f"{symbol}: yfinance returned {type(frame).__name__}")
             meta = ticker.get_history_metadata()
-            if not isinstance(meta, dict):
+            # A plain dict in older yfinance, a lazy Mapping in newer releases. Read only the
+            # keys needed: iterating it would trigger an extra intraday request.
+            if not isinstance(meta, Mapping):
                 raise ProviderError(f"{symbol}: yfinance returned no quote metadata")
-            return frame, meta
+            return frame, {key: meta.get(key) for key in QUOTE_KEYS}
 
         frame, meta = self._with_retry(symbol, "quote", call)
         return self._parse_quote(symbol, frame, meta)
