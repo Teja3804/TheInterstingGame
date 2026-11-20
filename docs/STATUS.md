@@ -107,8 +107,8 @@ Ways to see it:
   browser), so quantity x price, unrealised result, sessions held and hedge value are computed
   in `frontend/src/positionMath.ts` (tested). Everything else is computed by the backend.
 - **A `market-data` branch** holds the fetched SQLite file (public price candles only; no
-  positions, no secrets). It exists so the hosted snapshot can be built. `data/` and `*.db`
-  stay gitignored on code branches. Delete the branch if you would rather not keep it.
+  positions, no secrets). The scheduled publishing job keeps its database there between runs,
+  so do not delete it. `data/` and `*.db` stay gitignored on code branches.
 - **Example portfolio sizes** (10,000 USD and 500,000 INR) in `config/risk.yaml` drive the
   position-size illustrations. Replace them with your own.
 
@@ -163,4 +163,4 @@ a second price source for cross-checking, tuning or validating the score weights
 2. Optional: add free Finnhub / Twelve Data keys as GitHub secrets to cross-check US prices.
 3. Enter your real portfolio sizes in `config/risk.yaml`.
 4. Add earnings dates (needs a data source decision) so event risk can be checked.
-5. Scheduler and alerts (Phase 3).
+5. Alerts (Phase 3).
