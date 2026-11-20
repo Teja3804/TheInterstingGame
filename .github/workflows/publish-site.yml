@@ -6,20 +6,21 @@
 # database back to `market-data` (public price data only: no positions, no secrets).
 # Only runs on the default branch deploy the site; runs on other branches build and fetch only.
 #
-# GitHub may start scheduled runs late when it is busy, and turns schedules off in a public
-# repository after 60 days with no activity. The site shows its last update time and warns
-# when that is older than `site.stale_after_minutes` (config/settings.yaml) during a session.
+# Timing: GitHub's cron is best-effort (runs can be hours late or skipped), so on the default
+# branch every run ends with a `next` job that works out when the next run is due
+# (`python -m app.next_run`: every `site.update_every_minutes` while a market is open or just
+# closed, otherwise at the next open or after `site.idle_max_minutes`), waits, and starts it
+# with workflow_dispatch. The cron lines below are only a backup that restarts the chain if it
+# ever stops. A newer `next` job cancels an older waiting one, so only one chain runs.
+# The site shows its last update time and warns when it is late.
 name: Publish site
 
 on:
   schedule:
-    # India: NSE 09:15-15:30 Asia/Kolkata = 03:45-10:00 UTC, plus the 30 min close buffer.
-    - cron: "*/15 3-10 * * 1-5"
-    # US: NYSE 09:30-16:00 America/New_York = 13:30-20:00 UTC (summer) or 14:30-21:00 UTC
-    # (winter), plus the 30 min close buffer. Keep in step with site.update_every_minutes.
-    - cron: "*/15 13-21 * * 1-5"
-    # Once a day, every day, so weekends, holidays and corporate actions are picked up.
-    - cron: "41 23 * * *"
+    # Backup only (see above). India: 03:45-10:00 UTC. US: 13:30-21:00 UTC.
+    - cron: "7 3-10 * * 1-5"
+    - cron: "7 13-21 * * 1-5"
+    - cron: "41 */6 * * *"
   workflow_dispatch:
   push:
     branches: [main, data]
@@ -33,16 +34,20 @@ permissions:
   contents: write # save the database to the market-data branch
   pages: write
   id-token: write
-
-concurrency:
-  group: publish-site
-  cancel-in-progress: false
+  actions: write # start the next run
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    concurrency:
+      group: publish-site-build
+      cancel-in-progress: false
+    outputs:
+      started: ${{ steps.start.outputs.started }}
     steps:
+      - id: start
+        run: echo "started=$(date -u +%FT%TZ)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
@@ -107,9 +112,50 @@ jobs:
     needs: build
     if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
+    concurrency:
+      group: publish-site-deploy
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  next:
+    needs: [build, deploy]
+    if: >-
+      !cancelled() &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    concurrency:
+      group: publish-site-next
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - run: pip install -e ./backend
+      - id: plan
+        working-directory: backend
+        run: python -m app.next_run --started "${{ needs.build.outputs.started }}" | tee -a "$GITHUB_OUTPUT"
+      - name: Wait until the next run is due
+        run: sleep ${{ steps.plan.outputs.seconds }}
+      - name: Start the next run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          others=$(gh run list --repo "${{ github.repository }}" --workflow publish-site.yml \
+            --limit 20 --json databaseId,status \
+            --jq '[.[] | select(.databaseId != ${{ github.run_id }}) | select(.status == "queued" or .status == "in_progress" or .status == "pending" or .status == "waiting")] | length')
+          if [ "$others" -gt 0 ]; then
+            echo "another run is already queued or running; it continues the chain"
+          else
+            gh workflow run publish-site.yml --repo "${{ github.repository }}" \
+              --ref "${{ github.event.repository.default_branch }}"
+            echo "started the next run (${{ steps.plan.outputs.reason }})"
+          fi

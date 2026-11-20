@@ -30,7 +30,8 @@ quotes:
 
 site:
   # The website on GitHub Pages is rebuilt by .github/workflows/publish-site.yml.
-  update_every_minutes: 15      # must match that workflow's cron while a market is open
+  update_every_minutes: 15      # how often it runs while a market is open (or just closed)
+  idle_max_minutes: 120         # longest wait between runs while every market is closed
   stale_after_minutes: 60       # the site warns when its last update is older than this during a session
 
 indicators:

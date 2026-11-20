@@ -1,6 +1,6 @@
 # Status
 
-Last updated: 2026-11-20 (US time). Branch: `data` (browser-only site with latest prices).
+Last updated: 2026-11-20 evening (US time). Branch: `data` (browser-only site with latest prices).
 Earlier, on request, the one-phase-at-a-time rule was set aside to build a first version of
 three screens that span Phases 2, 2b and 4 (branch `three-screens`, merged).
 
@@ -43,10 +43,26 @@ Verified by running:
 
 Written but not run or not checked:
 
-- The GitHub Pages deployment itself: it runs only from the default branch after the
-  repository is public and Pages is set to GitHub Actions (see README). Not yet done.
-- The scheduled (cron) runs: GitHub only runs schedules from the default branch.
 - The open page noticing a newer build and reloading (logic is unit-tested in part only).
+
+### Fix, same evening: the site stopped updating
+
+After the merge (20:07 UTC) the site deployed once and then never updated: GitHub started
+**none** of the 7 cron runs due between 20:15 and 21:45 UTC, although the workflow was
+active and the repository public (checked through the GitHub API). GitHub's cron is
+best-effort and can be hours late or skip runs, especially for a newly added schedule.
+
+Change: every run on the default branch now ends with a `next` job that works out when the
+next run is due (`app/services/schedule.py`, `python -m app.next_run`): 15 minutes after this
+run started while a market is open or within the close buffer plus one interval after the
+close; otherwise at the next session open, but at most `site.idle_max_minutes` (120) later.
+It waits, then starts the next run with `workflow_dispatch` unless another run is already
+queued or running. A newer waiting job cancels an older one, so only one chain exists. The
+cron lines stay as a backup that restarts the chain.
+
+Verified by running: 9 new unit tests for the timing (sessions, after-close run, idle limit,
+next open, weekend); all backend checks pass (172 tests). Not yet seen working on GitHub:
+the chain starts with the first run on `main` after this is merged.
 
 ## What exists
 
@@ -140,9 +156,11 @@ Ways to see it:
 - Right after the Indian close, Yahoo's daily candle for that session can arrive with no
   close. It is rejected as a data-quality issue and those stocks show as stale until Yahoo
   fills it in on a later run; the latest price still shows.
-- The site updates only as often as GitHub runs the schedule: runs can start late when
-  GitHub is busy, and GitHub turns schedules off in a public repository after 60 days with
-  no activity (re-enable from the Actions tab). The header warns when updates are late.
+- Updates depend on the chain of runs: if a run cannot start (GitHub outage), the backup
+  cron restarts it when GitHub gets to it. GitHub turns cron schedules off in a public
+  repository after 60 days with no activity (re-enable from the Actions tab). Each run on
+  GitHub's servers takes a few minutes, so updates land about every 15 to 20 minutes. The
+  header warns when updates are late.
 - Latest prices are delayed (Yahoo: about 15 minutes for many exchanges) and come from one
   source; there is no second source to cross-check them.
 - On the GitHub Pages site, positions are kept per browser, not across devices.

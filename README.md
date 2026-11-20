@@ -33,9 +33,13 @@ Current progress and known limitations: [`docs/STATUS.md`](docs/STATUS.md).
 4. Saves the database back to `market-data` (public price data only: no positions, no
    secrets), with `fetch-report.txt` and `quotes.json` from that run.
 
-It runs every 15 minutes during each market's session (see the cron lines in the workflow),
-once a day every day, on every push to the code, and from the Actions tab ("Run workflow").
-Only runs on the default branch deploy the site.
+It runs every 15 minutes while either market is open (and once more after the close buffer,
+so the day's completed candle is picked up), and at least every 2 hours while both are
+closed. GitHub's own cron is best-effort and can be hours late, so each run on the default
+branch ends by waiting until the next one is due (`python -m app.next_run`) and starting it
+itself; the cron lines in the workflow only restart that chain if it ever stops. A push to
+the code or "Run workflow" in the Actions tab also starts a run. Only runs on the default
+branch deploy the site.
 
 One-time setup on github.com:
 
