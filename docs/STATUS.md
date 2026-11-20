@@ -28,7 +28,7 @@ with a public repository, Yahoo Finance only (no API keys).
 
 Verified by running:
 
-- Backend: 166 tests pass (new: quote checks, quote service, provider parsing including
+- Backend: 163 tests pass (new: quote checks, quote service, provider parsing including
   yfinance 1.x's lazy metadata, API routes, export); `ruff`, `ruff format --check`,
   `mypy --strict` clean. Frontend: 17 tests, `eslint`, `tsc --noEmit`, production build clean.
 - On GitHub Actions (push to `data`, 2026-11-20 19:41 UTC): 67 of 67 symbols' candles fetched
